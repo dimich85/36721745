@@ -371,7 +371,7 @@ class ProgressiveLoaderVFS {
             await this.runPhase('analyzing', async () => {
                 console.log('\n🤖 PHASE 2: AI Analysis (FULL codebase visibility)...');
 
-                const analysis = await this.workerPool.sendCommand('aiAnalyzer', 'analyzeFull', {
+                const analysis = await this.workerPool.sendCommand('aiAnalyzer', 'analyze', {
                     profiles: profiles.profiles,
                     callGraph: profiles.callGraph
                 });
