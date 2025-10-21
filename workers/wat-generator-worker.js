@@ -711,10 +711,10 @@ function generateAll(profilesData, optimizations) {
                 (sum, r) => sum + r.optimizationsApplied.length,
                 0
             ),
-            averageSpeedup: results.reduce(
+            averageSpeedup: results.length > 0 ? results.reduce(
                 (sum, r) => sum + r.estimatedSpeedup,
                 0
-            ) / results.length,
+            ) / results.length : 1.0,
             totalCodeSize: module.length,
             generationTime: totalTime
         }
