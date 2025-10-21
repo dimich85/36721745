@@ -73,14 +73,14 @@ class WorkerPool {
                 worker.addEventListener('message', (e) => {
                     if (e.data.type === 'ready') return;
 
-                    const { id, result, error } = e.data;
+                    const { id, success, result, error } = e.data;
 
                     const pending = this.pendingMessages.get(id);
                     if (pending) {
                         this.pendingMessages.delete(id);
 
-                        if (error) {
-                            pending.reject(new Error(error.message));
+                        if (success === false || error) {
+                            pending.reject(new Error(error?.message || 'Unknown worker error'));
                         } else {
                             pending.resolve(result);
                         }
