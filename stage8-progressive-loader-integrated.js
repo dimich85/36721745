@@ -355,9 +355,12 @@ class ProgressiveLoaderVFS {
 
                 this.stats.profiledFunctions = profiles.profiles.length;
 
+                // Calculate call graph size (it's an object, not an array with nodes)
+                const callGraphSize = Object.keys(profiles.callGraph || {}).length;
+
                 console.log(`✓ Profiled ${profiles.profiles.length} functions`);
-                console.log(`  Call graph nodes: ${profiles.callGraph.nodes.length}`);
-                console.log(`  Hot paths found: ${profiles.hotPaths.length}`);
+                console.log(`  Call graph nodes: ${callGraphSize}`);
+                console.log(`  Profiling time: ${profiles.profilingTime.toFixed(2)}ms`);
 
                 return profiles;
             });
