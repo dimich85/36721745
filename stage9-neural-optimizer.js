@@ -336,7 +336,10 @@ class NeuralNetwork {
         // Calculate error
         let error = Matrix.subtract(target, predicted);
 
-        // Backward pass
+        // Backward pass - сначала вычисляем все дельты, потом обновляем веса
+        const weightDeltas = [];
+        const biasDeltas = [];
+
         for (let i = this.layers.length - 1; i >= 0; i--) {
             const layerOutput = this.lastLayerOutputs[i + 1];
             const layerInput = this.lastLayerOutputs[i];
@@ -358,17 +361,31 @@ class NeuralNetwork {
             gradient = Matrix.hadamard(gradient, error);
             gradient = gradient.scale(this.learningRate);
 
+            // Gradient clipping для предотвращения explosion
+            gradient = gradient.map(g => {
+                if (!isFinite(g) || isNaN(g)) return 0;
+                if (g > 1.0) return 1.0;
+                if (g < -1.0) return -1.0;
+                return g;
+            });
+
             // Calculate deltas
             const inputTranspose = layerInput.transpose();
-            const weightDeltas = Matrix.multiply(gradient, inputTranspose);
+            const weightDelta = Matrix.multiply(gradient, inputTranspose);
 
-            // Update weights and biases
-            this.layers[i] = Matrix.add(this.layers[i], weightDeltas);
-            this.biases[i] = Matrix.add(this.biases[i], gradient);
+            // Сохраняем дельты (добавляем в начало, т.к. идем с конца)
+            weightDeltas.unshift(weightDelta);
+            biasDeltas.unshift(gradient);
 
-            // Calculate error for previous layer
+            // Calculate error for previous layer (используем СТАРЫЕ веса!)
             const weightsTranspose = this.layers[i].transpose();
             error = Matrix.multiply(weightsTranspose, error);
+        }
+
+        // Теперь обновляем все веса и смещения
+        for (let i = 0; i < this.layers.length; i++) {
+            this.layers[i] = Matrix.add(this.layers[i], weightDeltas[i]);
+            this.biases[i] = Matrix.add(this.biases[i], biasDeltas[i]);
         }
     }
 
@@ -634,9 +651,11 @@ class FeatureExtractor {
     normalizeFeatures(features) {
         // Simple min-max normalization (in production, use learned parameters)
         return features.map(f => {
+            // Защита от NaN, Infinity и undefined
+            if (!isFinite(f) || isNaN(f) || f === null || f === undefined) return 0;
             if (f === 0) return 0;
             if (f < 0) return 0;
-            if (f > 1000) return Math.log10(f) / 3; // Log scale for large values
+            if (f > 1000) return Math.log10(f + 1) / 3; // +1 для защиты от log10(0)
             if (f > 100) return f / 100;
             if (f > 10) return f / 10;
             return f;
