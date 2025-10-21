@@ -479,7 +479,7 @@ class ProgressiveLoaderVFS {
             this.stats.phaseTimings.total = totalTime;
 
             // Calculate total speedup
-            this.stats.totalSpeedup = this.getPhaseResult('analyzing').totalExpectedSpeedup;
+            this.stats.totalSpeedup = this.getPhaseResult('analyzing').statistics.estimatedTotalSpeedup;
 
             console.log('\n✅ PROGRESSIVE LOADING COMPLETE!');
             console.log('═'.repeat(60));
