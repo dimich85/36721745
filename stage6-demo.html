@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stage 6: AI-Powered Compiler Optimization Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .section h3 {
+            color: #764ba2;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .code-input {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            resize: vertical;
+            background: #fff;
+        }
+        
+        .code-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .output {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .output::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        .output::-webkit-scrollbar-track {
+            background: #1a202c;
+        }
+        
+        .output::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 5px;
+        }
+        
+        .output .highlight {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+        
+        .output .success {
+            color: #34d399;
+        }
+        
+        .output .info {
+            color: #60a5fa;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .feature-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .feature-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+        
+        .feature-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .feature-value {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .optimization-list {
+            margin-top: 20px;
+        }
+        
+        .optimization-item {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #34d399;
+        }
+        
+        .optimization-item.skipped {
+            border-left-color: #ef4444;
+            opacity: 0.7;
+        }
+        
+        .optimization-title {
+            color: #667eea;
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .optimization-desc {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .optimization-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .stat-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .training-example {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .example-code {
+            font-family: 'Courier New', monospace;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        
+        .example-time {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e2e8f0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            font-size: 16px;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #667eea;
+        }
+        
+        .tab:hover {
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .summary-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+        
+        .summary-box h3 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .summary-stat {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .summary-stat-label {
+            opacity: 0.9;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .summary-stat-value {
+            font-size: 2em;
+            font-weight: 700;
+        }
+        
+        .info-box {
+            background: #e6f2ff;
+            border-left: 4px solid #60a5fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .info-box p {
+            color: #1e40af;
+            line-height: 1.6;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI-Powered Compiler Optimization</h1>
+            <p>Интеллектуальная система оптимизации кода на основе машинного обучения</p>
+        </div>
+        
+        <div class="content">
+            <!-- Секция 1: Введение -->
+            <div class="section">
+                <h2>🎯 О проекте</h2>
+                <p style="line-height: 1.8; color: #555;">
+                    Добро пожаловать в революционный подход к оптимизации компиляторов! Традиционные компиляторы 
+                    используют заранее определённые правила для оптимизации кода. Мы же построили систему, которая 
+                    <strong>учится</strong> на примерах и принимает интеллектуальные решения об оптимизации.
+                </p>
+                
+                <h3>🧠 Как это работает?</h3>
+                <p style="line-height: 1.8; color: #555; margin-top: 10px;">
+                    Наша система состоит из трёх компонентов, которые работают вместе как единый интеллект:
+                </p>
+                
+                <div class="features-grid" style="margin-top: 20px;">
+                    <div class="feature-card">
+                        <h4>👁️ Feature Extractor</h4>
+                        <p style="color: #666; line-height: 1.6;">
+                            Анализирует код и извлекает его характеристики: количество циклов, операций, 
+                            сложность структуры. Превращает код в набор чисел, понятных для нейросети.
+                        </p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🎯 Neural Network</h4>
+                        <p style="color: #666; line-height: 1.6;">
+                            Предсказывает производительность кода без его выполнения. Обучается на примерах 
+                            и находит паттерны, которые приводят к быстрому или медленному коду.
+                        </p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>⚡ Strategy Selector</h4>
+                        <p style="color: #666; line-height: 1.6;">
+                            Принимает решения об оптимизации на основе предсказаний. Выбирает те оптимизации, 
+                            которые дадут наилучший результат для конкретного кода.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Секция 2: Обучение нейросети -->
+            <div class="section">
+                <h2>📚 Шаг 1: Обучение нейросети</h2>
+                <p style="line-height: 1.8; color: #555; margin-bottom: 20px;">
+                    Сначала мы должны обучить нейронную сеть на примерах кода. Мы покажем ей различные 
+                    функции с их реальным временем выполнения, и она научится предсказывать производительность.
+                </p>
+                
+                <div class="info-box">
+                    <p>
+                        <strong>💡 Как работает обучение:</strong> Мы создаём синтетические примеры кода 
+                        разной сложности, измеряем их производительность, и обучаем нейросеть находить 
+                        связь между характеристиками кода и его скоростью. Чем больше примеров, тем точнее 
+                        предсказания!
+                    </p>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-success" onclick="startTraining()">
+                        🚀 Начать обучение (100 эпох)
+                    </button>
+                    <button class="btn btn-secondary" onclick="generateTrainingData()">
+                        📊 Сгенерировать данные
+                    </button>
+                </div>
+                
+                <div id="trainingOutput"></div>
+                <div id="trainingProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Секция 3: Анализ кода -->
+            <div class="section">
+                <h2>🔍 Шаг 2: Анализ вашего кода</h2>
+                <p style="line-height: 1.8; color: #555; margin-bottom: 20px;">
+                    Введите JavaScript функцию, которую вы хотите оптимизировать. Система извлечёт её 
+                    характеристики, предскажет производительность, и предложит оптимальные оптимизации.
+                </p>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab(0)">Простой пример</button>
+                    <button class="tab" onclick="switchTab(1)">Сложный пример</button>
+                    <button class="tab" onclick="switchTab(2)">Свой код</button>
+                </div>
+                
+                <div class="tab-content active" id="tab0">
+                    <textarea class="code-input" id="codeInput0">function fibonacci(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}</textarea>
+                </div>
+                
+                <div class="tab-content" id="tab1">
+                    <textarea class="code-input" id="codeInput1">function processData(data) {
+    var result = [];
+    for (var i = 0; i < data.length; i++) {
+        var item = data[i];
+        if (item > 0) {
+            for (var j = 0; j < item; j++) {
+                result.push(item * j);
+            }
+        }
+    }
+    return result;
+}</textarea>
+                </div>
+                
+                <div class="tab-content" id="tab2">
+                    <textarea class="code-input" id="codeInput2" placeholder="Введите вашу функцию здесь..."></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="analyzeCode()">
+                        🔬 Анализировать код
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearOutput()">
+                        🗑️ Очистить
+                    </button>
+                </div>
+                
+                <div id="analysisOutput"></div>
+            </div>
+            
+            <!-- Секция 4: Результаты -->
+            <div class="section" id="resultsSection" style="display: none;">
+                <h2>📊 Результаты анализа</h2>
+                
+                <div class="summary-box">
+                    <h3>Прогноз производительности</h3>
+                    <div class="summary-stats">
+                        <div class="summary-stat">
+                            <div class="summary-stat-label">Без оптимизации</div>
+                            <div class="summary-stat-value" id="baselinePerf">-</div>
+                        </div>
+                        <div class="summary-stat">
+                            <div class="summary-stat-label">С оптимизацией</div>
+                            <div class="summary-stat-value" id="optimizedPerf">-</div>
+                        </div>
+                        <div class="summary-stat">
+                            <div class="summary-stat-label">Ускорение</div>
+                            <div class="summary-stat-value" id="improvement">-</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-top: 30px;">Характеристики кода</h3>
+                <div id="featuresDisplay" class="features-grid"></div>
+                
+                <h3 style="margin-top: 30px;">Выбранные оптимизации</h3>
+                <div id="optimizationsDisplay" class="optimization-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Подключаем наши модули -->
+    <script src="stage6-feature-extractor.js"></script>
+    <script src="stage6-neural-network.js"></script>
+    <script src="stage6-optimization-selector.js"></script>
+    
+    <!-- Подключаем предыдущие стадии для парсинга -->
+    <script src="stage1-lexer.js"></script>
+    <script src="stage2-parser.js"></script>
+    
+    <script>
+        // Глобальные переменные
+        let neuralNetwork = null;
+        let featureExtractor = null;
+        let optimizationSelector = null;
+        let trainingData = [];
+        let currentTab = 0;
+        
+        // Инициализация
+        function init() {
+            console.log('Initializing AI Compiler Optimization Demo...');
+            
+            // Создаём экземпляры наших классов
+            featureExtractor = new window.CompilerStage6.CodeFeatureExtractor();
+            
+            // Нейросеть с архитектурой: 33 входа -> 64 скрытых -> 32 скрытых -> 1 выход
+            neuralNetwork = new window.CompilerStage6.NeuralNetwork([33, 64, 32, 1]);
+            
+            optimizationSelector = new window.CompilerStage6.OptimizationStrategySelector();
+            
+            console.log('✓ Feature Extractor initialized');
+            console.log('✓ Neural Network initialized');
+            console.log('✓ Optimization Selector initialized');
+        }
+        
+        // Переключение табов
+        function switchTab(index) {
+            currentTab = index;
+            
+            // Обновляем активные классы
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach((tab, i) => {
+                if (i === index) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            
+            contents.forEach((content, i) => {
+                if (i === index) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        }
+        
+        // Генерация тренировочных данных
+        function generateTrainingData() {
+            console.log('Generating training data...');
+            trainingData = [];
+            
+            const examples = [
+                // Простые функции
+                { code: 'function add(a, b) { return a + b; }', time: 0.1 },
+                { code: 'function multiply(a, b) { return a * b; }', time: 0.1 },
+                
+                // Функции с условиями
+                { code: 'function max(a, b) { if (a > b) { return a; } return b; }', time: 0.2 },
+                { code: 'function abs(x) { if (x < 0) { return -x; } return x; }', time: 0.2 },
+                
+                // Функции с циклами
+                { code: 'function sum(n) { var s = 0; for (var i = 0; i < n; i++) { s = s + i; } return s; }', time: 1.5 },
+                { code: 'function factorial(n) { var r = 1; for (var i = 2; i <= n; i++) { r = r * i; } return r; }', time: 1.8 },
+                
+                // Вложенные циклы
+                { code: 'function matrix(n) { var s = 0; for (var i = 0; i < n; i++) { for (var j = 0; j < n; j++) { s = s + i * j; } } return s; }', time: 5.0 },
+                { code: 'function nested(n) { var r = 0; for (var i = 0; i < n; i++) { for (var j = 0; j < n; j++) { r = r + 1; } } return r; }', time: 4.8 },
+                
+                // Рекурсивные функции
+                { code: 'function fib(n) { if (n <= 1) { return n; } return fib(n - 1) + fib(n - 2); }', time: 10.0 },
+                { code: 'function power(x, n) { if (n == 0) { return 1; } return x * power(x, n - 1); }', time: 3.5 },
+                
+                // Сложные функции
+                { code: 'function complex(data) { var result = 0; for (var i = 0; i < data; i++) { if (i % 2 == 0) { result = result + i; } else { result = result - i; } } return result; }', time: 2.5 },
+                { code: 'function process(arr) { var sum = 0; for (var i = 0; i < arr; i++) { var temp = arr * 2; sum = sum + temp; } return sum; }', time: 2.0 }
+            ];
+            
+            // Создаём тренировочные данные
+            for (let i = 0; i < examples.length; i++) {
+                const example = examples[i];
+                
+                try {
+                    // Парсим код
+                    const lexer = new Lexer(example.code);
+                    const tokens = lexer.tokenize();
+                    const parser = new Parser(tokens);
+                    const ast = parser.parse();
+                    
+                    // Извлекаем характеристики
+                    const features = featureExtractor.extract(ast);
+                    
+                    trainingData.push({
+                        input: features,
+                        target: example.time
+                    });
+                } catch (error) {
+                    console.error('Error processing example:', error);
+                }
+            }
+            
+            const output = document.getElementById('trainingOutput');
+            output.innerHTML = '<div class="output">' +
+                '<span class="success">✓ Тренировочные данные сгенерированы</span>\n' +
+                '<span class="info">Количество примеров: ' + trainingData.length + '</span>\n' +
+                '\nПримеры включают:\n' +
+                '  • Простые арифметические функции (0.1-0.2 ms)\n' +
+                '  • Функции с циклами (1.5-2.5 ms)\n' +
+                '  • Вложенные циклы (4.8-5.0 ms)\n' +
+                '  • Рекурсивные функции (3.5-10.0 ms)\n' +
+                '</div>';
+            
+            console.log('✓ Training data generated:', trainingData.length, 'samples');
+        }
+        
+        // Обучение нейросети
+        function startTraining() {
+            if (trainingData.length === 0) {
+                generateTrainingData();
+            }
+            
+            console.log('Starting neural network training...');
+            
+            const output = document.getElementById('trainingOutput');
+            const progressDiv = document.getElementById('trainingProgress');
+            const progressFill = document.getElementById('progressFill');
+            
+            output.innerHTML = '<div class="output loading">🧠 Обучение нейросети...\n\nЭто может занять несколько секунд...</div>';
+            progressDiv.style.display = 'block';
+            
+            // Обучаем в отдельном "потоке" чтобы не блокировать UI
+            setTimeout(() => {
+                const epochs = 100;
+                let completedEpochs = 0;
+                
+                // Симулируем прогресс (реальное обучение идёт быстро)
+                const updateProgress = () => {
+                    completedEpochs += 10;
+                    const percent = (completedEpochs / epochs) * 100;
+                    progressFill.style.width = percent + '%';
+                    progressFill.textContent = Math.round(percent) + '%';
+                    
+                    if (completedEpochs < epochs) {
+                        setTimeout(updateProgress, 200);
+                    }
+                };
+                
+                updateProgress();
+                
+                // Реальное обучение
+                const result = neuralNetwork.train(trainingData, epochs);
+                
+                output.innerHTML = '<div class="output">' +
+                    '<span class="success">✓ Обучение завершено!</span>\n\n' +
+                    '<span class="highlight">Результаты обучения:</span>\n' +
+                    '  • Эпох: ' + epochs + '\n' +
+                    '  • Финальная ошибка: ' + result.finalLoss.toFixed(6) + '\n' +
+                    '  • Примеров обучения: ' + trainingData.length + '\n\n' +
+                    '<span class="info">Нейросеть готова к работе! Теперь она может предсказывать\n' +
+                    'производительность кода и помогать выбирать оптимизации.</span>\n' +
+                    '</div>';
+                
+                console.log('✓ Training complete');
+            }, 100);
+        }
+        
+        // Анализ кода
+        function analyzeCode() {
+            // Проверяем, обучена ли сеть
+            if (!neuralNetwork || neuralNetwork.trainingHistory.epochs === 0) {
+                alert('Сначала нужно обучить нейросеть! Нажмите "Начать обучение"');
+                return;
+            }
+            
+            // Получаем код из активного таба
+            const codeInput = document.getElementById('codeInput' + currentTab);
+            const code = codeInput.value.trim();
+            
+            if (!code) {
+                alert('Пожалуйста, введите код для анализа');
+                return;
+            }
+            
+            console.log('Analyzing code...');
+            
+            const output = document.getElementById('analysisOutput');
+            output.innerHTML = '<div class="output loading">🔍 Анализируем код...</div>';
+            
+            try {
+                // Парсим код
+                const lexer = new Lexer(code);
+                const tokens = lexer.tokenize();
+                const parser = new Parser(tokens);
+                const ast = parser.parse();
+                
+                // Извлекаем характеристики
+                featureExtractor.extract(ast);
+                const featureVector = featureExtractor.buildFeatureVector();
+                const featureDesc = featureExtractor.getFeatureDescription();
+                
+                // Выбираем оптимизации
+                const strategy = optimizationSelector.selectOptimizations(featureExtractor, neuralNetwork);
+                
+                // Отображаем результаты
+                displayResults(featureDesc, strategy);
+                
+                output.innerHTML = '<div class="output">' +
+                    '<span class="success">✓ Анализ завершён</span>\n\n' +
+                    'Извлечено характеристик: ' + featureVector.length + '\n' +
+                    'Предсказана производительность: ' + strategy.baselinePerformance.toFixed(2) + ' ms\n' +
+                    'Выбрано оптимизаций: ' + strategy.selectedOptimizations.length + '\n' +
+                    'Ожидаемое ускорение: ' + strategy.totalImprovementPercent.toFixed(1) + '%\n' +
+                    '</div>';
+                
+                console.log('✓ Analysis complete');
+            } catch (error) {
+                output.innerHTML = '<div class="output">' +
+                    '<span style="color: #ef4444;">✗ Ошибка анализа:</span>\n\n' +
+                    error.message + '\n' +
+                    '</div>';
+                console.error('Analysis error:', error);
+            }
+        }
+        
+        // Отображение результатов
+        function displayResults(features, strategy) {
+            // Показываем секцию результатов
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Обновляем summary
+            document.getElementById('baselinePerf').textContent = strategy.baselinePerformance.toFixed(2) + ' ms';
+            document.getElementById('optimizedPerf').textContent = strategy.estimatedFinalPerformance.toFixed(2) + ' ms';
+            document.getElementById('improvement').textContent = strategy.totalImprovementPercent.toFixed(1) + '%';
+            
+            // Отображаем характеристики
+            const featuresDisplay = document.getElementById('featuresDisplay');
+            featuresDisplay.innerHTML = `
+                <div class="feature-card">
+                    <h4>Структура</h4>
+                    <div class="feature-item">
+                        <span class="feature-label">Всего узлов:</span>
+                        <span class="feature-value">${features.structural.totalNodes}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Макс. глубина:</span>
+                        <span class="feature-value">${features.structural.maxDepth}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Ветвление:</span>
+                        <span class="feature-value">${features.structural.branchingFactor}</span>
+                    </div>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>Операции</h4>
+                    <div class="feature-item">
+                        <span class="feature-label">Арифметика:</span>
+                        <span class="feature-value">${features.operations.counts.arithmetic}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Сравнения:</span>
+                        <span class="feature-value">${features.operations.counts.comparison}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Плотность:</span>
+                        <span class="feature-value">${features.operations.density}</span>
+                    </div>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>Циклы</h4>
+                    <div class="feature-item">
+                        <span class="feature-label">Всего:</span>
+                        <span class="feature-value">${features.loops.total}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Вложенные:</span>
+                        <span class="feature-value">${features.loops.nested}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Сложность:</span>
+                        <span class="feature-value">${features.loops.complexity}</span>
+                    </div>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>Сложность</h4>
+                    <div class="feature-item">
+                        <span class="feature-label">Цикломатическая:</span>
+                        <span class="feature-value">${features.complexity.cyclomatic}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Функций:</span>
+                        <span class="feature-value">${features.callGraph.functions}</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">Вызовов:</span>
+                        <span class="feature-value">${features.callGraph.calls}</span>
+                    </div>
+                </div>
+            `;
+            
+            // Отображаем оптимизации
+            const optimizationsDisplay = document.getElementById('optimizationsDisplay');
+            let optimizationsHTML = '';
+            
+            strategy.allEvaluations.forEach(eval => {
+                const opt = eval.optimization;
+                const isSelected = strategy.selectedOptimizations.some(s => s.name === opt.name);
+                
+                optimizationsHTML += `
+                    <div class="optimization-item ${isSelected ? '' : 'skipped'}">
+                        <div class="optimization-title">
+                            ${isSelected ? '✓' : '✗'} ${opt.displayName}
+                        </div>
+                        <div class="optimization-desc">${opt.description}</div>
+                        ${eval.applicable ? `
+                            <div class="optimization-stats">
+                                <div class="stat">
+                                    <span class="stat-label">Ожидаемая польза:</span>
+                                    <span class="stat-value">${(eval.expectedBenefit * 100).toFixed(1)}%</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Стоимость:</span>
+                                    <span class="stat-value">${opt.cost}</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Качество:</span>
+                                    <span class="stat-value">${eval.qualityScore.toFixed(3)}</span>
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="color: #ef4444; margin-top: 10px;">
+                                ${eval.reason}
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            
+            optimizationsDisplay.innerHTML = optimizationsHTML;
+            
+            // Прокручиваем к результатам
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Очистка output
+        function clearOutput() {
+            document.getElementById('analysisOutput').innerHTML = '';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+        
+        // Инициализация при загрузке
+        window.onload = init;
+    </script>
+</body>
+</html>

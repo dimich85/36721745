@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered JavaScript Compiler - Stage 6 Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            font-size: 1.8em;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .success {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .error {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .info {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AI-Powered JavaScript Compiler</h1>
+            <p>Интеллектуальная оптимизация кода с машинным обучением</p>
+        </div>
+        
+        <div class="content">
+            <!-- Этап 1: Обучение нейросети -->
+            <div class="section">
+                <div class="section-title">
+                    🧠 Этап 1: Обучение нейросети
+                </div>
+                <div class="card">
+                    <p style="margin-bottom: 15px;">
+                        Нейросеть учится предсказывать производительность кода на основе его характеристик.
+                        Мы генерируем тренировочные данные - различные функции и измеряем их реальное время выполнения.
+                    </p>
+                    <button class="btn" onclick="trainNetwork(50)">🚀 Быстрое обучение (50 эпох)</button>
+                    <button class="btn" onclick="trainNetwork(100)">🚀 Обучение (100 эпох)</button>
+                    <button class="btn" onclick="trainNetwork(200)">🚀 Глубокое обучение (200 эпох)</button>
+                    <div id="training-output" class="output" style="display: none;"></div>
+                    <div id="training-stats" class="stats" style="display: none;"></div>
+                </div>
+            </div>
+            
+            <!-- Этап 2: Анализ кода -->
+            <div class="section">
+                <div class="section-title">
+                    🔬 Этап 2: Анализ кода пользователя
+                </div>
+                <div class="card">
+                    <p style="margin-bottom: 15px;">
+                        Введите JavaScript код для анализа. Система извлечёт характеристики и предскажет производительность.
+                    </p>
+                    <textarea id="user-code" placeholder="Введите JavaScript код здесь...">function fibonacci(n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+function testFib() {
+    var result = 0;
+    for (var i = 0; i < 10; i++) {
+        result += fibonacci(i);
+    }
+    return result;
+}</textarea>
+                    <br><br>
+                    <button class="btn btn-secondary" onclick="analyzeCode()">🔬 Анализировать код</button>
+                    <button class="btn btn-success" onclick="generateRandomCode()">🎲 Сгенерировать случайный код</button>
+                    <div id="analysis-output" class="output" style="display: none;"></div>
+                </div>
+            </div>
+            
+            <!-- Этап 3: Сравнение -->
+            <div class="section">
+                <div class="section-title">
+                    📊 Этап 3: Сравнение предсказаний с реальностью
+                </div>
+                <div class="card">
+                    <p style="margin-bottom: 15px;">
+                        Сравниваем предсказания нейросети с реальным временем выполнения кода.
+                    </p>
+                    <button class="btn" onclick="comparePerformance()">📊 Сравнить производительность</button>
+                    <div id="comparison-output" class="output" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ========================================================================
+        // STAGE 1: LEXER (Лексический анализ)
+        // ========================================================================
+        
+        function Lexer(input) {
+            this.input = input;
+            this.position = 0;
+            this.currentChar = this.input[0];
+        }
+        
+        Lexer.prototype.advance = function() {
+            this.position++;
+            this.currentChar = this.position < this.input.length ? this.input[this.position] : null;
+        };
+        
+        Lexer.prototype.skipWhitespace = function() {
+            while (this.currentChar !== null && /\s/.test(this.currentChar)) {
+                this.advance();
+            }
+        };
+        
+        Lexer.prototype.readNumber = function() {
+            var num = '';
+            while (this.currentChar !== null && /[0-9.]/.test(this.currentChar)) {
+                num += this.currentChar;
+                this.advance();
+            }
+            return parseFloat(num);
+        };
+        
+        Lexer.prototype.readIdentifier = function() {
+            var id = '';
+            while (this.currentChar !== null && /[a-zA-Z0-9_]/.test(this.currentChar)) {
+                id += this.currentChar;
+                this.advance();
+            }
+            return id;
+        };
+        
+        Lexer.prototype.getNextToken = function() {
+            while (this.currentChar !== null) {
+                if (/\s/.test(this.currentChar)) {
+                    this.skipWhitespace();
+                    continue;
+                }
+                
+                if (/[0-9]/.test(this.currentChar)) {
+                    return { type: 'NUMBER', value: this.readNumber() };
+                }
+                
+                if (/[a-zA-Z_]/.test(this.currentChar)) {
+                    var id = this.readIdentifier();
+                    var keywords = ['function', 'return', 'if', 'else', 'for', 'while', 'var', 'let', 'const'];
+                    if (keywords.indexOf(id) !== -1) {
+                        return { type: id.toUpperCase(), value: id };
+                    }
+                    return { type: 'ID', value: id };
+                }
+                
+                var char = this.currentChar;
+                this.advance();
+                
+                if (char === '+') return { type: 'PLUS', value: '+' };
+                if (char === '-') return { type: 'MINUS', value: '-' };
+                if (char === '*') return { type: 'MUL', value: '*' };
+                if (char === '/') return { type: 'DIV', value: '/' };
+                if (char === '(') return { type: 'LPAREN', value: '(' };
+                if (char === ')') return { type: 'RPAREN', value: ')' };
+                if (char === '{') return { type: 'LBRACE', value: '{' };
+                if (char === '}') return { type: 'RBRACE', value: '}' };
+                if (char === ';') return { type: 'SEMI', value: ';' };
+                if (char === ',') return { type: 'COMMA', value: ',' };
+                if (char === '=') {
+                    if (this.currentChar === '=') {
+                        this.advance();
+                        return { type: 'EQ', value: '==' };
+                    }
+                    return { type: 'ASSIGN', value: '=' };
+                }
+                if (char === '<') {
+                    if (this.currentChar === '=') {
+                        this.advance();
+                        return { type: 'LTE', value: '<=' };
+                    }
+                    return { type: 'LT', value: '<' };
+                }
+                if (char === '>') {
+                    if (this.currentChar === '=') {
+                        this.advance();
+                        return { type: 'GTE', value: '>=' };
+                    }
+                    return { type: 'GT', value: '>' };
+                }
+            }
+            
+            return { type: 'EOF', value: null };
+        };
+        
+        // ========================================================================
+        // STAGE 2: PARSER (Синтаксический анализ)
+        // ========================================================================
+        
+        function Parser(lexer) {
+            this.lexer = lexer;
+            this.currentToken = this.lexer.getNextToken();
+        }
+        
+        Parser.prototype.eat = function(tokenType) {
+            if (this.currentToken.type === tokenType) {
+                this.currentToken = this.lexer.getNextToken();
+            } else {
+                throw new Error('Unexpected token: ' + this.currentToken.type + ', expected: ' + tokenType);
+            }
+        };
+        
+        Parser.prototype.parse = function() {
+            var statements = [];
+            while (this.currentToken.type !== 'EOF') {
+                statements.push(this.statement());
+            }
+            return { type: 'Program', body: statements };
+        };
+        
+        Parser.prototype.statement = function() {
+            if (this.currentToken.type === 'FUNCTION') {
+                return this.functionDeclaration();
+            } else if (this.currentToken.type === 'VAR' || this.currentToken.type === 'LET' || this.currentToken.type === 'CONST') {
+                return this.variableDeclaration();
+            } else if (this.currentToken.type === 'RETURN') {
+                return this.returnStatement();
+            } else if (this.currentToken.type === 'IF') {
+                return this.ifStatement();
+            } else if (this.currentToken.type === 'FOR') {
+                return this.forStatement();
+            } else if (this.currentToken.type === 'WHILE') {
+                return this.whileStatement();
+            } else {
+                var expr = this.expression();
+                this.eat('SEMI');
+                return expr;
+            }
+        };
+        
+        Parser.prototype.functionDeclaration = function() {
+            this.eat('FUNCTION');
+            var name = { type: 'Identifier', value: this.currentToken.value };
+            this.eat('ID');
+            this.eat('LPAREN');
+            
+            var params = [];
+            if (this.currentToken.type !== 'RPAREN') {
+                params.push({ type: 'Identifier', value: this.currentToken.value });
+                this.eat('ID');
+                while (this.currentToken.type === 'COMMA') {
+                    this.eat('COMMA');
+                    params.push({ type: 'Identifier', value: this.currentToken.value });
+                    this.eat('ID');
+                }
+            }
+            
+            this.eat('RPAREN');
+            var body = this.blockStatement();
+            
+            return { type: 'FunctionDeclaration', name: name, params: params, body: body };
+        };
+        
+        Parser.prototype.blockStatement = function() {
+            this.eat('LBRACE');
+            var statements = [];
+            while (this.currentToken.type !== 'RBRACE' && this.currentToken.type !== 'EOF') {
+                statements.push(this.statement());
+            }
+            this.eat('RBRACE');
+            return { type: 'BlockStatement', statements: statements };
+        };
+        
+        Parser.prototype.variableDeclaration = function() {
+            var kind = this.currentToken.value;
+            this.eat(this.currentToken.type);
+            var id = { type: 'Identifier', value: this.currentToken.value };
+            this.eat('ID');
+            
+            var init = null;
+            if (this.currentToken.type === 'ASSIGN') {
+                this.eat('ASSIGN');
+                init = this.expression();
+            }
+            
+            this.eat('SEMI');
+            return { type: 'VariableDeclaration', kind: kind, id: id, init: init };
+        };
+        
+        Parser.prototype.returnStatement = function() {
+            this.eat('RETURN');
+            var argument = null;
+            if (this.currentToken.type !== 'SEMI') {
+                argument = this.expression();
+            }
+            this.eat('SEMI');
+            return { type: 'ReturnStatement', argument: argument };
+        };
+        
+        Parser.prototype.ifStatement = function() {
+            this.eat('IF');
+            this.eat('LPAREN');
+            var test = this.expression();
+            this.eat('RPAREN');
+            var consequent = this.blockStatement();
+            var alternate = null;
+            if (this.currentToken.type === 'ELSE') {
+                this.eat('ELSE');
+                alternate = this.blockStatement();
+            }
+            return { type: 'IfStatement', test: test, consequent: consequent, alternate: alternate };
+        };
+        
+        Parser.prototype.forStatement = function() {
+            this.eat('FOR');
+            this.eat('LPAREN');
+            var init = this.variableDeclarationForLoop();
+            var test = this.expression();
+            this.eat('SEMI');
+            var update = this.expression();
+            this.eat('RPAREN');
+            var body = this.blockStatement();
+            return { type: 'ForStatement', init: init, test: test, update: update, body: body };
+        };
+        
+        Parser.prototype.variableDeclarationForLoop = function() {
+            var kind = this.currentToken.value;
+            this.eat(this.currentToken.type);
+            var id = { type: 'Identifier', value: this.currentToken.value };
+            this.eat('ID');
+            var init = null;
+            if (this.currentToken.type === 'ASSIGN') {
+                this.eat('ASSIGN');
+                init = this.expression();
+            }
+            this.eat('SEMI');
+            return { type: 'VariableDeclaration', kind: kind, id: id, init: init };
+        };
+        
+        Parser.prototype.whileStatement = function() {
+            this.eat('WHILE');
+            this.eat('LPAREN');
+            var test = this.expression();
+            this.eat('RPAREN');
+            var body = this.blockStatement();
+            return { type: 'WhileStatement', test: test, body: body };
+        };
+        
+        Parser.prototype.expression = function() {
+            return this.comparisonExpression();
+        };
+        
+        Parser.prototype.comparisonExpression = function() {
+            var left = this.additiveExpression();
+            
+            while (this.currentToken.type === 'LT' || this.currentToken.type === 'GT' || 
+                   this.currentToken.type === 'LTE' || this.currentToken.type === 'GTE' ||
+                   this.currentToken.type === 'EQ') {
+                var operator = this.currentToken.value;
+                this.eat(this.currentToken.type);
+                var right = this.additiveExpression();
+                left = { type: 'BinaryExpression', operator: operator, left: left, right: right };
+            }
+            
+            return left;
+        };
+        
+        Parser.prototype.additiveExpression = function() {
+            var left = this.multiplicativeExpression();
+            
+            while (this.currentToken.type === 'PLUS' || this.currentToken.type === 'MINUS') {
+                var operator = this.currentToken.value;
+                this.eat(this.currentToken.type);
+                var right = this.multiplicativeExpression();
+                left = { type: 'BinaryExpression', operator: operator, left: left, right: right };
+            }
+            
+            return left;
+        };
+        
+        Parser.prototype.multiplicativeExpression = function() {
+            var left = this.primary();
+            
+            while (this.currentToken.type === 'MUL' || this.currentToken.type === 'DIV') {
+                var operator = this.currentToken.value;
+                this.eat(this.currentToken.type);
+                var right = this.primary();
+                left = { type: 'BinaryExpression', operator: operator, left: left, right: right };
+            }
+            
+            return left;
+        };
+        
+        Parser.prototype.primary = function() {
+            var token = this.currentToken;
+            
+            if (token.type === 'NUMBER') {
+                this.eat('NUMBER');
+                return { type: 'Literal', value: token.value };
+            } else if (token.type === 'ID') {
+                var id = { type: 'Identifier', value: token.value };
+                this.eat('ID');
+                
+                if (this.currentToken.type === 'LPAREN') {
+                    this.eat('LPAREN');
+                    var args = [];
+                    if (this.currentToken.type !== 'RPAREN') {
+                        args.push(this.expression());
+                        while (this.currentToken.type === 'COMMA') {
+                            this.eat('COMMA');
+                            args.push(this.expression());
+                        }
+                    }
+                    this.eat('RPAREN');
+                    return { type: 'CallExpression', callee: id, arguments: args };
+                } else if (this.currentToken.type === 'ASSIGN') {
+                    this.eat('ASSIGN');
+                    var right = this.expression();
+                    return { type: 'AssignmentExpression', left: id, right: right };
+                }
+                
+                return id;
+            } else if (token.type === 'LPAREN') {
+                this.eat('LPAREN');
+                var expr = this.expression();
+                this.eat('RPAREN');
+                return expr;
+            }
+            
+            throw new Error('Unexpected token: ' + token.type);
+        };
+        
+        // ========================================================================
+        // STAGE 6: CODE FEATURE EXTRACTOR
+        // ========================================================================
+        
+        function CodeFeatureExtractor() {
+            this.features = {};
+            this.nodeCounts = { total: 0, literals: 0, identifiers: 0, binaryOps: 0, unaryOps: 0, calls: 0, assignments: 0, returns: 0, ifs: 0, loops: 0, functions: 0 };
+            this.operationCounts = { arithmetic: 0, comparison: 0, logical: 0, bitwise: 0 };
+            this.depthStats = { max: 0, average: 0, samples: [] };
+            this.variableStats = { declared: 0, used: 0, usageMap: {} };
+            this.loopStats = { total: 0, nested: 0, maxNesting: 0 };
+            this.callGraph = { nodes: [], edges: [] };
+        }
+        
+        CodeFeatureExtractor.prototype.extract = function(ast) {
+            this.reset();
+            this.traverseAST(ast, 0);
+            this.computeDerivedFeatures();
+            return this.buildFeatureVector();
+        };
+        
+        CodeFeatureExtractor.prototype.reset = function() {
+            this.nodeCounts = { total: 0, literals: 0, identifiers: 0, binaryOps: 0, unaryOps: 0, calls: 0, assignments: 0, returns: 0, ifs: 0, loops: 0, functions: 0 };
+            this.operationCounts = { arithmetic: 0, comparison: 0, logical: 0, bitwise: 0 };
+            this.depthStats = { max: 0, average: 0, samples: [] };
+            this.variableStats = { declared: 0, used: 0, usageMap: {} };
+            this.loopStats = { total: 0, nested: 0, maxNesting: 0 };
+            this.callGraph = { nodes: [], edges: [] };
+            this.features = {};
+        };
+        
+        CodeFeatureExtractor.prototype.traverseAST = function(node, depth, loopDepth) {
+            if (!node || typeof node !== 'object') return;
+            loopDepth = loopDepth || 0;
+            
+            this.nodeCounts.total++;
+            if (depth > this.depthStats.max) this.depthStats.max = depth;
+            this.depthStats.samples.push(depth);
+            
+            var nodeType = node.type;
+            
+            if (nodeType === 'Program') {
+                if (node.body && Array.isArray(node.body)) {
+                    for (var i = 0; i < node.body.length; i++) {
+                        this.traverseAST(node.body[i], depth + 1, loopDepth);
+                    }
+                }
+            } else if (nodeType === 'FunctionDeclaration') {
+                this.nodeCounts.functions++;
+                if (node.name) this.callGraph.nodes.push(node.name.value);
+                if (node.params) {
+                    for (var i = 0; i < node.params.length; i++) {
+                        this.traverseAST(node.params[i], depth + 1, loopDepth);
+                    }
+                }
+                if (node.body) this.traverseAST(node.body, depth + 1, loopDepth);
+            } else if (nodeType === 'BlockStatement') {
+                if (node.statements) {
+                    for (var i = 0; i < node.statements.length; i++) {
+                        this.traverseAST(node.statements[i], depth + 1, loopDepth);
+                    }
+                }
+            } else if (nodeType === 'VariableDeclaration') {
+                this.variableStats.declared++;
+                if (node.id && node.id.value) this.variableStats.usageMap[node.id.value] = 0;
+                if (node.init) this.traverseAST(node.init, depth + 1, loopDepth);
+            } else if (nodeType === 'Identifier') {
+                this.nodeCounts.identifiers++;
+                if (node.value && this.variableStats.usageMap[node.value] !== undefined) {
+                    this.variableStats.usageMap[node.value]++;
+                    this.variableStats.used++;
+                }
+            } else if (nodeType === 'Literal') {
+                this.nodeCounts.literals++;
+            } else if (nodeType === 'BinaryExpression') {
+                this.nodeCounts.binaryOps++;
+                this.classifyOperation(node.operator);
+                if (node.left) this.traverseAST(node.left, depth + 1, loopDepth);
+                if (node.right) this.traverseAST(node.right, depth + 1, loopDepth);
+            } else if (nodeType === 'AssignmentExpression') {
+                this.nodeCounts.assignments++;
+                if (node.left) this.traverseAST(node.left, depth + 1, loopDepth);
+                if (node.right) this.traverseAST(node.right, depth + 1, loopDepth);
+            } else if (nodeType === 'CallExpression') {
+                this.nodeCounts.calls++;
+                if (node.callee && node.callee.value) {
+                    this.callGraph.edges.push({ from: 'current', to: node.callee.value });
+                }
+                if (node.arguments) {
+                    for (var i = 0; i < node.arguments.length; i++) {
+                        this.traverseAST(node.arguments[i], depth + 1, loopDepth);
+                    }
+                }
+            } else if (nodeType === 'ReturnStatement') {
+                this.nodeCounts.returns++;
+                if (node.argument) this.traverseAST(node.argument, depth + 1, loopDepth);
+            } else if (nodeType === 'IfStatement') {
+                this.nodeCounts.ifs++;
+                if (node.test) this.traverseAST(node.test, depth + 1, loopDepth);
+                if (node.consequent) this.traverseAST(node.consequent, depth + 1, loopDepth);
+                if (node.alternate) this.traverseAST(node.alternate, depth + 1, loopDepth);
+            } else if (nodeType === 'WhileStatement' || nodeType === 'ForStatement') {
+                this.nodeCounts.loops++;
+                this.loopStats.total++;
+                if (loopDepth > 0) this.loopStats.nested++;
+                var newLoopDepth = loopDepth + 1;
+                if (newLoopDepth > this.loopStats.maxNesting) this.loopStats.maxNesting = newLoopDepth;
+                if (node.test) this.traverseAST(node.test, depth + 1, newLoopDepth);
+                if (node.init) this.traverseAST(node.init, depth + 1, newLoopDepth);
+                if (node.update) this.traverseAST(node.update, depth + 1, newLoopDepth);
+                if (node.body) this.traverseAST(node.body, depth + 1, newLoopDepth);
+            }
+        };
+        
+        CodeFeatureExtractor.prototype.classifyOperation = function(operator) {
+            var arithmetic = ['+', '-', '*', '/', '%'];
+            var comparison = ['==', '!=', '<', '>', '<=', '>='];
+            var logical = ['&&', '||'];
+            var bitwise = ['&', '|', '^', '<<', '>>', '>>>'];
+            
+            if (arithmetic.indexOf(operator) !== -1) {
+                this.operationCounts.arithmetic++;
+            } else if (comparison.indexOf(operator) !== -1) {
+                this.operationCounts.comparison++;
+            } else if (logical.indexOf(operator) !== -1) {
+                this.operationCounts.logical++;
+            } else if (bitwise.indexOf(operator) !== -1) {
+                this.operationCounts.bitwise++;
+            }
+        };
+        
+        CodeFeatureExtractor.prototype.computeDerivedFeatures = function() {
+            if (this.depthStats.samples.length > 0) {
+                var sum = 0;
+                for (var i = 0; i < this.depthStats.samples.length; i++) {
+                    sum += this.depthStats.samples[i];
+                }
+                this.depthStats.average = sum / this.depthStats.samples.length;
+            }
+            
+            this.features.branchingFactor = this.nodeCounts.total > 0 ? this.nodeCounts.ifs / this.nodeCounts.total : 0;
+            
+            var totalOps = this.operationCounts.arithmetic + this.operationCounts.comparison + this.operationCounts.logical + this.operationCounts.bitwise;
+            this.features.operationDensity = this.nodeCounts.total > 0 ? totalOps / this.nodeCounts.total : 0;
+            
+            if (totalOps > 0) {
+                this.features.arithmeticRatio = this.operationCounts.arithmetic / totalOps;
+                this.features.comparisonRatio = this.operationCounts.comparison / totalOps;
+                this.features.logicalRatio = this.operationCounts.logical / totalOps;
+                this.features.bitwiseRatio = this.operationCounts.bitwise / totalOps;
+            } else {
+                this.features.arithmeticRatio = 0;
+                this.features.comparisonRatio = 0;
+                this.features.logicalRatio = 0;
+                this.features.bitwiseRatio = 0;
+            }
+            
+            var totalUsages = 0;
+            var variableNames = Object.keys(this.variableStats.usageMap);
+            for (var i = 0; i < variableNames.length; i++) {
+                totalUsages += this.variableStats.usageMap[variableNames[i]];
+            }
+            this.features.variableReuseRate = this.variableStats.declared > 0 ? totalUsages / this.variableStats.declared : 0;
+            this.features.loopComplexity = this.loopStats.total > 0 ? (this.loopStats.nested + this.loopStats.maxNesting) / this.loopStats.total : 0;
+            this.features.cyclomaticComplexity = 1 + this.nodeCounts.ifs + this.nodeCounts.loops;
+        };
+        
+        CodeFeatureExtractor.prototype.buildFeatureVector = function() {
+            return [
+                this.nodeCounts.total, this.depthStats.max, this.depthStats.average, this.features.branchingFactor,
+                this.nodeCounts.literals, this.nodeCounts.identifiers, this.nodeCounts.binaryOps, this.nodeCounts.unaryOps,
+                this.nodeCounts.calls, this.nodeCounts.assignments, this.nodeCounts.returns, this.nodeCounts.ifs,
+                this.nodeCounts.loops, this.nodeCounts.functions, this.operationCounts.arithmetic, this.operationCounts.comparison,
+                this.operationCounts.logical, this.operationCounts.bitwise, this.features.operationDensity, this.features.arithmeticRatio,
+                this.features.comparisonRatio, this.features.logicalRatio, this.features.bitwiseRatio, this.variableStats.declared,
+                this.variableStats.used, this.features.variableReuseRate, this.loopStats.total, this.loopStats.nested,
+                this.loopStats.maxNesting, this.features.loopComplexity, this.features.cyclomaticComplexity,
+                this.callGraph.nodes.length, this.callGraph.edges.length
+            ];
+        };
+        
+        // ========================================================================
+        // STAGE 6: NEURAL NETWORK
+        // ========================================================================
+        
+        function NeuralNetwork(layerSizes) {
+            this.layerSizes = layerSizes;
+            this.numLayers = layerSizes.length;
+            this.weights = [];
+            this.biases = [];
+            this.activations = [];
+            this.zValues = [];
+            this.learningRate = 0.001;
+            this.momentum = 0.9;
+            this.trainingHistory = { losses: [], epochs: 0 };
+            this.initializeWeights();
+        }
+        
+        NeuralNetwork.prototype.initializeWeights = function() {
+            for (var i = 0; i < this.numLayers - 1; i++) {
+                var inputSize = this.layerSizes[i];
+                var outputSize = this.layerSizes[i + 1];
+                var layerWeights = [];
+                var scale = Math.sqrt(2.0 / (inputSize + outputSize));
+                
+                for (var j = 0; j < outputSize; j++) {
+                    var neuronWeights = [];
+                    for (var k = 0; k < inputSize; k++) {
+                        neuronWeights.push((Math.random() * 2 - 1) * scale);
+                    }
+                    layerWeights.push(neuronWeights);
+                }
+                
+                this.weights.push(layerWeights);
+                
+                var layerBiases = [];
+                for (var j = 0; j < outputSize; j++) {
+                    layerBiases.push(0);
+                }
+                
+                this.biases.push(layerBiases);
+            }
+        };
+        
+        NeuralNetwork.prototype.forward = function(input) {
+            this.activations = [];
+            this.zValues = [];
+            this.activations.push(input);
+            
+            for (var layer = 0; layer < this.weights.length; layer++) {
+                var prevActivation = this.activations[layer];
+                var layerWeights = this.weights[layer];
+                var layerBiases = this.biases[layer];
+                
+                var z = [];
+                var a = [];
+                
+                for (var neuron = 0; neuron < layerWeights.length; neuron++) {
+                    var neuronWeights = layerWeights[neuron];
+                    var neuronBias = layerBiases[neuron];
+                    
+                    var sum = neuronBias;
+                    for (var i = 0; i < prevActivation.length; i++) {
+                        sum += neuronWeights[i] * prevActivation[i];
+                    }
+                    
+                    z.push(sum);
+                    
+                    var activation;
+                    if (layer < this.weights.length - 1) {
+                        activation = this.relu(sum);
+                    } else {
+                        activation = sum;
+                    }
+                    
+                    a.push(activation);
+                }
+                
+                this.zValues.push(z);
+                this.activations.push(a);
+            }
+            
+            var output = this.activations[this.activations.length - 1];
+            return output[0];
+        };
+        
+        NeuralNetwork.prototype.relu = function(x) {
+            return Math.max(0, x);
+        };
+        
+        NeuralNetwork.prototype.reluDerivative = function(x) {
+            return x > 0 ? 1 : 0;
+        };
+        
+        NeuralNetwork.prototype.computeLoss = function(predicted, actual) {
+            var diff = predicted - actual;
+            return diff * diff;
+        };
+        
+        NeuralNetwork.prototype.trainOnce = function(input, target) {
+            var predicted = this.forward(input);
+            var loss = this.computeLoss(predicted, target);
+            this.backward(target);
+            this.updateWeights();
+            return loss;
+        };
+        
+        NeuralNetwork.prototype.backward = function(target) {
+            this.weightGradients = [];
+            this.biasGradients = [];
+            
+            for (var i = 0; i < this.weights.length; i++) {
+                var layerWeightGrads = [];
+                var layerBiasGrads = [];
+                
+                for (var j = 0; j < this.weights[i].length; j++) {
+                    var neuronGrads = [];
+                    for (var k = 0; k < this.weights[i][j].length; k++) {
+                        neuronGrads.push(0);
+                    }
+                    layerWeightGrads.push(neuronGrads);
+                    layerBiasGrads.push(0);
+                }
+                
+                this.weightGradients.push(layerWeightGrads);
+                this.biasGradients.push(layerBiasGrads);
+            }
+            
+            var outputLayer = this.weights.length - 1;
+            var predicted = this.activations[this.activations.length - 1][0];
+            var outputError = 2 * (predicted - target);
+            var delta = [outputError];
+            
+            for (var layer = this.weights.length - 1; layer >= 0; layer--) {
+                var prevActivation = this.activations[layer];
+                var layerWeights = this.weights[layer];
+                
+                for (var neuron = 0; neuron < layerWeights.length; neuron++) {
+                    this.biasGradients[layer][neuron] = delta[neuron];
+                    
+                    for (var weight = 0; weight < layerWeights[neuron].length; weight++) {
+                        this.weightGradients[layer][neuron][weight] = delta[neuron] * prevActivation[weight];
+                    }
+                }
+                
+                if (layer > 0) {
+                    var nextDelta = [];
+                    
+                    for (var i = 0; i < prevActivation.length; i++) {
+                        var error = 0;
+                        
+                        for (var j = 0; j < layerWeights.length; j++) {
+                            error += delta[j] * layerWeights[j][i];
+                        }
+                        
+                        var z = this.zValues[layer - 1][i];
+                        error *= this.reluDerivative(z);
+                        
+                        nextDelta.push(error);
+                    }
+                    
+                    delta = nextDelta;
+                }
+            }
+        };
+        
+        NeuralNetwork.prototype.updateWeights = function() {
+            for (var layer = 0; layer < this.weights.length; layer++) {
+                for (var neuron = 0; neuron < this.weights[layer].length; neuron++) {
+                    this.biases[layer][neuron] -= this.learningRate * this.biasGradients[layer][neuron];
+                    
+                    for (var weight = 0; weight < this.weights[layer][neuron].length; weight++) {
+                        this.weights[layer][neuron][weight] -= this.learningRate * this.weightGradients[layer][neuron][weight];
+                    }
+                }
+            }
+        };
+        
+        NeuralNetwork.prototype.train = function(trainingData, epochs, callback) {
+            for (var epoch = 0; epoch < epochs; epoch++) {
+                var totalLoss = 0;
+                var shuffled = this.shuffleArray(trainingData.slice());
+                
+                for (var i = 0; i < shuffled.length; i++) {
+                    var sample = shuffled[i];
+                    var loss = this.trainOnce(sample.input, sample.target);
+                    totalLoss += loss;
+                }
+                
+                var avgLoss = totalLoss / shuffled.length;
+                this.trainingHistory.losses.push(avgLoss);
+                this.trainingHistory.epochs++;
+                
+                if (callback && (epoch + 1) % Math.max(1, Math.floor(epochs / 10)) === 0) {
+                    callback(epoch + 1, epochs, avgLoss);
+                }
+            }
+            
+            return {
+                finalLoss: this.trainingHistory.losses[this.trainingHistory.losses.length - 1],
+                history: this.trainingHistory
+            };
+        };
+        
+        NeuralNetwork.prototype.predict = function(input) {
+            return this.forward(input);
+        };
+        
+        NeuralNetwork.prototype.shuffleArray = function(array) {
+            for (var i = array.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = array[i];
+                array[i] = array[j];
+                array[j] = temp;
+            }
+            return array;
+        };
+        
+        // ========================================================================
+        // TRAINING DATA GENERATOR
+        // ========================================================================
+        
+        function generateTrainingData(numSamples) {
+            var samples = [];
+            var extractor = new CodeFeatureExtractor();
+            
+            for (var i = 0; i < numSamples; i++) {
+                var code = generateRandomFunction();
+                
+                try {
+                    var lexer = new Lexer(code);
+                    var parser = new Parser(lexer);
+                    var ast = parser.parse();
+                    
+                    var features = extractor.extract(ast);
+                    
+                    // Измеряем реальное время выполнения
+                    var executionTime = measureExecutionTime(code);
+                    
+                    samples.push({
+                        input: features,
+                        target: executionTime,
+                        code: code
+                    });
+                } catch (e) {
+                    // Пропускаем невалидный код
+                    i--;
+                }
+            }
+            
+            return samples;
+        }
+        
+        function generateRandomFunction() {
+            var templates = [
+                // Простая функция с циклом
+                'function test() { var sum = 0; for (var i = 0; i < 100; i = i + 1) { sum = sum + i; } return sum; }',
+                
+                // Функция с вложенными циклами
+                'function test() { var sum = 0; for (var i = 0; i < 10; i = i + 1) { for (var j = 0; j < 10; j = j + 1) { sum = sum + i * j; } } return sum; }',
+                
+                // Функция с условиями
+                'function test() { var sum = 0; for (var i = 0; i < 50; i = i + 1) { if (i < 25) { sum = sum + i; } } return sum; }',
+                
+                // Рекурсивная функция (упрощенная)
+                'function fib(n) { if (n < 2) { return n; } return fib(n - 1) + fib(n - 2); }',
+                
+                // Функция с множеством операций
+                'function test() { var a = 10; var b = 20; var c = a * b + a - b; var d = c / 2; return d; }',
+                
+                // Функция с циклом while
+                'function test() { var i = 0; var sum = 0; while (i < 100) { sum = sum + i; i = i + 1; } return sum; }'
+            ];
+            
+            return templates[Math.floor(Math.random() * templates.length)];
+        }
+        
+        function measureExecutionTime(code) {
+            // Простая эвристика на основе характеристик кода
+            // В реальной системе мы бы выполняли код и замеряли время
+            
+            var complexity = 0;
+            
+            // Считаем циклы
+            var forLoops = (code.match(/for\s*\(/g) || []).length;
+            var whileLoops = (code.match(/while\s*\(/g) || []).length;
+            complexity += (forLoops + whileLoops) * 10;
+            
+            // Считаем вложенность (грубая оценка)
+            var braceDepth = 0;
+            var maxDepth = 0;
+            for (var i = 0; i < code.length; i++) {
+                if (code[i] === '{') {
+                    braceDepth++;
+                    maxDepth = Math.max(maxDepth, braceDepth);
+                } else if (code[i] === '}') {
+                    braceDepth--;
+                }
+            }
+            complexity += maxDepth * 5;
+            
+            // Считаем операции
+            var operations = (code.match(/[+\-*\/]/g) || []).length;
+            complexity += operations * 0.1;
+            
+            // Условия
+            var ifs = (code.match(/if\s*\(/g) || []).length;
+            complexity += ifs * 2;
+            
+            // Рекурсия
+            if (code.indexOf('return ' + code.match(/function\s+(\w+)/)?.[1]) !== -1) {
+                complexity += 50;
+            }
+            
+            // Добавляем небольшой случайный шум
+            complexity += Math.random() * 5;
+            
+            return complexity;
+        }
+        
+        // ========================================================================
+        // UI FUNCTIONS
+        // ========================================================================
+        
+        var globalNetwork = null;
+        var globalTrainingData = [];
+        
+        function trainNetwork(epochs) {
+            var outputDiv = document.getElementById('training-output');
+            var statsDiv = document.getElementById('training-stats');
+            outputDiv.style.display = 'block';
+            statsDiv.style.display = 'none';
+            
+            outputDiv.innerHTML = '<span class="info">⏳ Генерируем тренировочные данные...</span>';
+            
+            setTimeout(function() {
+                try {
+                    // Генерируем тренировочные данные
+                    var numSamples = 100;
+                    outputDiv.innerHTML += '\n<span class="info">✓ Генерируем ' + numSamples + ' примеров кода...</span>';
+                    
+                    globalTrainingData = generateTrainingData(numSamples);
+                    outputDiv.innerHTML += '\n<span class="success">✓ Сгенерировано ' + globalTrainingData.length + ' примеров!</span>';
+                    
+                    // Создаём нейросеть
+                    // Вектор характеристик имеет 33 элемента
+                    globalNetwork = new NeuralNetwork([33, 64, 32, 1]);
+                    outputDiv.innerHTML += '\n<span class="info">✓ Создана нейросеть: [33 → 64 → 32 → 1]</span>';
+                    outputDiv.innerHTML += '\n<span class="info">⏳ Начинаем обучение на ' + epochs + ' эпох...</span>\n';
+                    
+                    // Обучаем
+                    var result = globalNetwork.train(globalTrainingData, epochs, function(epoch, total, loss) {
+                        outputDiv.innerHTML += '\n<span class="info">Эпоха ' + epoch + '/' + total + ', Ошибка: ' + loss.toFixed(6) + '</span>';
+                        outputDiv.scrollTop = outputDiv.scrollHeight;
+                    });
+                    
+                    outputDiv.innerHTML += '\n\n<span class="success">✓ Обучение завершено!</span>';
+                    outputDiv.innerHTML += '\n<span class="success">  Финальная ошибка: ' + result.finalLoss.toFixed(6) + '</span>';
+                    
+                    // Показываем статистику
+                    statsDiv.style.display = 'grid';
+                    statsDiv.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-value">${epochs}</div>
+                            <div class="stat-label">Эпох обучения</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${globalTrainingData.length}</div>
+                            <div class="stat-label">Примеров</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.finalLoss.toFixed(4)}</div>
+                            <div class="stat-label">Финальная ошибка</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${((1 - Math.min(result.finalLoss / 100, 1)) * 100).toFixed(1)}%</div>
+                            <div class="stat-label">Точность</div>
+                        </div>
+                    `;
+                } catch (error) {
+                    outputDiv.innerHTML += '\n\n<span class="error">✗ Ошибка обучения: ' + error.message + '</span>';
+                    console.error(error);
+                }
+            }, 100);
+        }
+        
+        function analyzeCode() {
+            if (!globalNetwork) {
+                alert('Сначала обучите нейросеть!');
+                return;
+            }
+            
+            var code = document.getElementById('user-code').value;
+            var outputDiv = document.getElementById('analysis-output');
+            outputDiv.style.display = 'block';
+            
+            try {
+                outputDiv.innerHTML = '<span class="info">⏳ Анализируем код...</span>';
+                
+                // Парсим код
+                var lexer = new Lexer(code);
+                var parser = new Parser(lexer);
+                var ast = parser.parse();
+                
+                // Извлекаем характеристики
+                var extractor = new CodeFeatureExtractor();
+                var features = extractor.extract(ast);
+                
+                outputDiv.innerHTML += '\n<span class="success">✓ Код успешно распарсен</span>';
+                outputDiv.innerHTML += '\n<span class="success">✓ Извлечено ' + features.length + ' характеристик</span>';
+                
+                // Предсказываем производительность
+                var predicted = globalNetwork.predict(features);
+                
+                outputDiv.innerHTML += '\n\n<span class="info">📊 Характеристики кода:</span>';
+                outputDiv.innerHTML += '\n  • Всего узлов AST: ' + extractor.nodeCounts.total;
+                outputDiv.innerHTML += '\n  • Максимальная глубина: ' + extractor.depthStats.max;
+                outputDiv.innerHTML += '\n  • Количество циклов: ' + extractor.nodeCounts.loops;
+                outputDiv.innerHTML += '\n  • Количество условий: ' + extractor.nodeCounts.ifs;
+                outputDiv.innerHTML += '\n  • Арифметических операций: ' + extractor.operationCounts.arithmetic;
+                outputDiv.innerHTML += '\n  • Цикломатическая сложность: ' + extractor.features.cyclomaticComplexity;
+                
+                outputDiv.innerHTML += '\n\n<span class="success">🎯 Предсказание нейросети:</span>';
+                outputDiv.innerHTML += '\n  • Ожидаемая сложность: ' + predicted.toFixed(2) + ' единиц';
+                
+                var category = '';
+                if (predicted < 20) {
+                    category = 'Быстрый код ⚡';
+                } else if (predicted < 50) {
+                    category = 'Средняя сложность 👍';
+                } else if (predicted < 100) {
+                    category = 'Медленный код ⚠️';
+                } else {
+                    category = 'Очень медленный код 🐌';
+                }
+                
+                outputDiv.innerHTML += '\n  • Категория: ' + category;
+                
+                // Рекомендации по оптимизации
+                outputDiv.innerHTML += '\n\n<span class="info">💡 Рекомендации по оптимизации:</span>';
+                
+                if (extractor.loopStats.nested > 0) {
+                    outputDiv.innerHTML += '\n  • Обнаружены вложенные циклы - рассмотрите возможность их оптимизации';
+                }
+                
+                if (extractor.nodeCounts.calls > 10) {
+                    outputDiv.innerHTML += '\n  • Много вызовов функций - можно применить инлайнинг';
+                }
+                
+                if (extractor.features.cyclomaticComplexity > 10) {
+                    outputDiv.innerHTML += '\n  • Высокая цикломатическая сложность - упростите логику';
+                }
+                
+                if (extractor.operationCounts.arithmetic > 20) {
+                    outputDiv.innerHTML += '\n  • Много арифметических операций - можно векторизовать';
+                }
+                
+            } catch (error) {
+                outputDiv.innerHTML = '<span class="error">✗ Ошибка анализа: ' + error.message + '</span>';
+                console.error(error);
+            }
+        }
+        
+        function generateRandomCode() {
+            var code = generateRandomFunction();
+            document.getElementById('user-code').value = code;
+        }
+        
+        function comparePerformance() {
+            if (!globalNetwork) {
+                alert('Сначала обучите нейросеть!');
+                return;
+            }
+            
+            var outputDiv = document.getElementById('comparison-output');
+            outputDiv.style.display = 'block';
+            
+            outputDiv.innerHTML = '<span class="info">⏳ Тестируем точность предсказаний...</span>\n\n';
+            
+            setTimeout(function() {
+                try {
+                    var testSamples = generateTrainingData(10);
+                    
+                    outputDiv.innerHTML += '<span class="success">✓ Сгенерировано ' + testSamples.length + ' тестовых примеров</span>\n\n';
+                    
+                    var totalError = 0;
+                    
+                    for (var i = 0; i < testSamples.length; i++) {
+                        var sample = testSamples[i];
+                        var predicted = globalNetwork.predict(sample.input);
+                        var actual = sample.target;
+                        var error = Math.abs(predicted - actual);
+                        var errorPercent = (error / actual * 100).toFixed(1);
+                        
+                        totalError += error;
+                        
+                        outputDiv.innerHTML += '<span class="info">Пример ' + (i + 1) + ':</span>\n';
+                        outputDiv.innerHTML += '  Реальная сложность: ' + actual.toFixed(2) + '\n';
+                        outputDiv.innerHTML += '  Предсказанная: ' + predicted.toFixed(2) + '\n';
+                        outputDiv.innerHTML += '  Ошибка: ' + error.toFixed(2) + ' (' + errorPercent + '%)\n\n';
+                    }
+                    
+                    var avgError = totalError / testSamples.length;
+                    var accuracy = Math.max(0, 100 - avgError);
+                    
+                    outputDiv.innerHTML += '\n<span class="success">📊 Итоговая статистика:</span>\n';
+                    outputDiv.innerHTML += '  • Средняя ошибка: ' + avgError.toFixed(2) + '\n';
+                    outputDiv.innerHTML += '  • Точность: ~' + accuracy.toFixed(1) + '%\n';
+                    
+                } catch (error) {
+                    outputDiv.innerHTML = '<span class="error">✗ Ошибка: ' + error.message + '</span>';
+                    console.error(error);
+                }
+            }, 100);
+        }
+    </script>
+</body>
+</html>

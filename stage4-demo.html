@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stage 4: Revolutionary WASM Architecture Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        
+        .architecture-diagram {
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 2px solid #667eea;
+        }
+        
+        .layer {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.3s;
+        }
+        
+        .layer:hover {
+            transform: translateX(5px);
+        }
+        
+        .layer h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        
+        .layer-javascript {
+            border-left-color: #f39c12;
+        }
+        
+        .layer-wasm {
+            border-left-color: #654ea3;
+        }
+        
+        .layer-ai {
+            border-left-color: #e74c3c;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 25px;
+            font-size: 1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #e67e22;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .console-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .progress-container {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 30px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-idle { background: #95a5a6; }
+        .status-running { background: #f39c12; animation: pulse 1s infinite; }
+        .status-success { background: #27ae60; }
+        .status-error { background: #e74c3c; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .visualization {
+            position: relative;
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .code-flow {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            height: 100%;
+        }
+        
+        .flow-step {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            min-width: 150px;
+        }
+        
+        .flow-arrow {
+            font-size: 2em;
+            color: #667eea;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .comparison-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .better {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .worse {
+            color: #e74c3c;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .control-buttons {
+                flex-direction: column;
+            }
+            
+            button {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Stage 4: Revolutionary WASM Architecture</h1>
+            <p class="subtitle">Демонстрация полной компиляции бизнес-логики в WebAssembly</p>
+            
+            <div class="architecture-diagram">
+                <h3 style="text-align: center; margin-bottom: 20px;">Революционная архитектура с четким разделением</h3>
+                
+                <div class="layer layer-javascript">
+                    <h3>📱 JavaScript Boundary Layer (Граничный слой)</h3>
+                    <p>Тонкий адаптер между браузером и WASM. Обрабатывает события DOM, управляет отображением. ~300-500 строк кода. Никакой бизнес-логики!</p>
+                </div>
+                
+                <div class="layer layer-wasm">
+                    <h3>⚡ WebAssembly Core (Ядро бизнес-логики)</h3>
+                    <p>ВСЯ бизнес-логика скомпилирована в WASM. Файловая система, поиск, индексирование, обработка данных. Детерминированная производительность с первой миллисекунды.</p>
+                </div>
+                
+                <div class="layer layer-ai">
+                    <h3>🤖 AI Optimization Layer (Слой AI-оптимизации)</h3>
+                    <p>Профилирование, анализ, компиляция и оптимизация. AI видит весь код в едином формате WASM и применяет глобальные оптимизации.</p>
+                </div>
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <div class="panel">
+                <h2>🎮 Управление</h2>
+                
+                <div class="control-buttons">
+                    <button class="btn-primary" onclick="runFullOptimization()">
+                        Запустить Полную Оптимизацию
+                    </button>
+                    <button class="btn-secondary" onclick="demonstrateSystem()">
+                        Демонстрация Системы
+                    </button>
+                    <button class="btn-success" onclick="showArchitectureDetails()">
+                        Детали Архитектуры
+                    </button>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h3 style="margin-bottom: 10px;">Статус системы:</h3>
+                    <p><span id="status-indicator" class="status-indicator status-idle"></span><span id="status-text">Готова к работе</span></p>
+                </div>
+                
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar">0%</div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Уровень оптимизации</div>
+                        <div class="stat-value" id="optimization-level">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Прирост производительности</div>
+                        <div class="stat-value" id="performance-gain">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Скомпилировано функций</div>
+                        <div class="stat-value" id="compiled-functions">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Размер WASM</div>
+                        <div class="stat-value" id="wasm-size">0 KB</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>📊 Визуализация процесса</h2>
+                
+                <div class="visualization">
+                    <div class="code-flow">
+                        <div class="flow-step">
+                            <div style="font-size: 2em;">📝</div>
+                            <strong>JavaScript</strong>
+                            <p>Бизнес-логика</p>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-size: 2em;">🔍</div>
+                            <strong>Профилирование</strong>
+                            <p>Анализ</p>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-size: 2em;">⚙️</div>
+                            <strong>Компиляция</strong>
+                            <p>WASM генерация</p>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-size: 2em;">⚡</div>
+                            <strong>Оптимизация</strong>
+                            <p>AI улучшения</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 style="margin: 20px 0 10px 0;">Сравнение производительности:</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Операция</th>
+                            <th>JavaScript</th>
+                            <th>WASM</th>
+                            <th>Улучшение</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparison-tbody">
+                        <tr>
+                            <td>Файловые операции</td>
+                            <td id="js-file-ops">-</td>
+                            <td id="wasm-file-ops">-</td>
+                            <td id="file-ops-gain">-</td>
+                        </tr>
+                        <tr>
+                            <td>Поисковые операции</td>
+                            <td id="js-search-ops">-</td>
+                            <td id="wasm-search-ops">-</td>
+                            <td id="search-ops-gain">-</td>
+                        </tr>
+                        <tr>
+                            <td>Общее время</td>
+                            <td id="js-total">-</td>
+                            <td id="wasm-total">-</td>
+                            <td id="total-gain" class="better">-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>📺 Консольный вывод</h2>
+            <div id="console" class="console-output">Ожидание команд...\n</div>
+            <button class="btn-secondary" onclick="clearConsole()" style="margin-top: 10px;">Очистить консоль</button>
+        </div>
+    </div>
+
+    <!-- Подключаем все наши модули -->
+    <script src="wasm-boundary-layer.js"></script>
+    <script src="wasm-compiler-system.js"></script>
+    <script src="business-logic-module.js"></script>
+    <script src="integration-module.js"></script>
+    
+    <script>
+        // Глобальные переменные
+        let architecture = null;
+        let consoleElement = null;
+        
+        // Перехватываем console.log для отображения в UI
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            if (consoleElement) {
+                const message = args.join(' ');
+                consoleElement.textContent += message + '\n';
+                consoleElement.scrollTop = consoleElement.scrollHeight;
+            }
+        };
+        
+        // Инициализация при загрузке страницы
+        window.addEventListener('DOMContentLoaded', () => {
+            consoleElement = document.getElementById('console');
+            
+            try {
+                // Инициализируем революционную архитектуру
+                architecture = new RevolutionaryArchitecture();
+                
+                updateStatus('success', 'Система инициализирована и готова');
+                console.log('✓ Все компоненты загружены и инициализированы');
+                console.log('✓ Готовы к демонстрации революционной архитектуры!');
+                console.log('');
+                
+            } catch (error) {
+                updateStatus('error', 'Ошибка инициализации: ' + error.message);
+                console.error('Ошибка инициализации:', error);
+            }
+        });
+        
+        // Главная функция оптимизации
+        async function runFullOptimization() {
+            if (!architecture) {
+                alert('Система не инициализирована!');
+                return;
+            }
+            
+            updateStatus('running', 'Выполняется революционная оптимизация...');
+            updateProgress(0);
+            clearConsole();
+            
+            try {
+                // Симулируем прогресс
+                const progressInterval = setInterval(() => {
+                    const currentProgress = parseInt(document.getElementById('progress-bar').style.width);
+                    if (currentProgress < 95) {
+                        updateProgress(currentProgress + 5);
+                    }
+                }, 200);
+                
+                // Запускаем оптимизацию
+                const result = await architecture.performRevolutionaryOptimization();
+                
+                clearInterval(progressInterval);
+                updateProgress(100);
+                
+                if (result.success) {
+                    updateStatus('success', 'Оптимизация завершена успешно!');
+                    
+                    // Обновляем статистику
+                    document.getElementById('optimization-level').textContent = '100%';
+                    document.getElementById('performance-gain').textContent = 
+                        result.improvement.totalGain.toFixed(1) + '%';
+                    document.getElementById('compiled-functions').textContent = 
+                        result.optimizationResult.recommendations.criticalFunctions.length;
+                    document.getElementById('wasm-size').textContent = 
+                        (result.optimizationResult.compiledSize / 1024).toFixed(2) + ' KB';
+                    
+                    // Обновляем таблицу сравнения
+                    updateComparisonTable(result.beforeBenchmark, result.afterBenchmark, result.improvement);
+                    
+                } else {
+                    updateStatus('error', 'Ошибка оптимизации: ' + result.error);
+                }
+                
+            } catch (error) {
+                updateStatus('error', 'Ошибка: ' + error.message);
+                console.error('Ошибка оптимизации:', error);
+            }
+        }
+        
+        // Демонстрация системы
+        async function demonstrateSystem() {
+            if (!architecture) {
+                alert('Система не инициализирована!');
+                return;
+            }
+            
+            updateStatus('running', 'Демонстрация работы системы...');
+            clearConsole();
+            
+            try {
+                await architecture.demonstrateSystem();
+                updateStatus('success', 'Демонстрация завершена');
+            } catch (error) {
+                updateStatus('error', 'Ошибка: ' + error.message);
+            }
+        }
+        
+        // Показать детали архитектуры
+        function showArchitectureDetails() {
+            if (!architecture) {
+                alert('Система не инициализирована!');
+                return;
+            }
+            
+            clearConsole();
+            
+            const status = architecture.getFullStatus();
+            
+            console.log('═'.repeat(70));
+            console.log('ПОЛНЫЙ СТАТУС РЕВОЛЮЦИОННОЙ АРХИТЕКТУРЫ');
+            console.log('═'.repeat(70));
+            console.log('');
+            
+            console.log('Архитектура:');
+            console.log(`  Версия: ${status.architecture.version}`);
+            console.log(`  Инициализирована: ${status.architecture.initialized}`);
+            console.log(`  Скомпилирована: ${status.architecture.compiled}`);
+            console.log(`  Уровень оптимизации: ${status.architecture.optimizationLevel}%`);
+            console.log(`  Прирост производительности: ${status.architecture.performanceGain.toFixed(1)}%`);
+            console.log('');
+            
+            console.log('Бизнес-логика:');
+            console.log(`  Файлов: ${status.businessLogic.vfs.totalFiles}`);
+            console.log(`  Директорий: ${status.businessLogic.vfs.totalDirectories}`);
+            console.log(`  Размер: ${status.businessLogic.vfs.totalSize} байт`);
+            console.log(`  Проиндексировано токенов: ${status.businessLogic.search.totalTokens}`);
+            console.log('');
+            
+            console.log('Граничный WASM слой:');
+            console.log(`  Всего вызовов WASM: ${status.bridge.totalCalls}`);
+            console.log(`  Пересечений границы: ${status.bridge.totalBoundaryCrossings}`);
+            console.log(`  Среднее время вызова: ${status.bridge.averageCallTime.toFixed(3)}ms`);
+            console.log('');
+        }
+        
+        // Вспомогательные функции UI
+        function updateStatus(type, message) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            
+            indicator.className = 'status-indicator status-' + type;
+            text.textContent = message;
+        }
+        
+        function updateProgress(percent) {
+            const bar = document.getElementById('progress-bar');
+            bar.style.width = percent + '%';
+            bar.textContent = percent + '%';
+        }
+        
+        function updateComparisonTable(before, after, improvement) {
+            document.getElementById('js-file-ops').textContent = before.fileOps.toFixed(2) + 'ms';
+            document.getElementById('wasm-file-ops').textContent = after.fileOps.toFixed(2) + 'ms';
+            document.getElementById('file-ops-gain').textContent = '+' + improvement.fileOpsGain.toFixed(1) + '%';
+            document.getElementById('file-ops-gain').className = 'better';
+            
+            document.getElementById('js-search-ops').textContent = before.searchOps.toFixed(2) + 'ms';
+            document.getElementById('wasm-search-ops').textContent = after.searchOps.toFixed(2) + 'ms';
+            document.getElementById('search-ops-gain').textContent = '+' + improvement.searchOpsGain.toFixed(1) + '%';
+            document.getElementById('search-ops-gain').className = 'better';
+            
+            document.getElementById('js-total').textContent = before.total.toFixed(2) + 'ms';
+            document.getElementById('wasm-total').textContent = after.total.toFixed(2) + 'ms';
+            document.getElementById('total-gain').textContent = '+' + improvement.totalGain.toFixed(1) + '%';
+        }
+        
+        function clearConsole() {
+            if (consoleElement) {
+                consoleElement.textContent = '';
+            }
+        }
+    </script>
+</body>
+</html>

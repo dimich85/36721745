@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>macOS - Stage 2: WebGPU Integration</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+
+<style>
+    :root {
+        --text-color: #ffffff;
+        --accent: #007aff;
+        --system-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * { box-sizing: border-box; user-select: none; }
+    body, html {
+        margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden;
+        font-family: var(--system-font); color: var(--text-color);
+        cursor: default;
+        /* Фон теперь рисуется через WebGPU canvas */
+        background: #000;
+    }
+
+    /* WebGPU Canvas для фона - располагается под всем содержимым */
+    #webgpu-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none; /* Не перехватывает события мыши */
+    }
+
+    /* Desktop контейнер над canvas */
+    #desktop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+    }
+
+    #boot-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; z-index: 99999;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .apple-logo { color: white; font-size: 80px; margin-bottom: 40px; }
+    .boot-message {
+        color: #0f0;
+        font-family: monospace;
+        margin-top: 10px;
+        font-size: 14px;
+    }
+
+    /* Menu Bar с glassmorphism эффектом */
+    #menubar {
+        position: absolute; top: 0; width: 100%; height: 30px;
+        background: rgba(20, 20, 20, 0.4);
+        backdrop-filter: blur(20px); /* Fallback для браузеров без WebGPU */
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0 20px; font-size: 13px; font-weight: 500; z-index: 5000;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .menu-left, .menu-right { display: flex; gap: 15px; align-items: center; }
+    .menu-item:hover { background: rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 8px; margin: -2px -8px;}
+
+    /* Performance indicator */
+    #gpu-status {
+        background: rgba(0, 255, 0, 0.2);
+        border: 1px solid #0f0;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: monospace;
+        color: #0f0;
+    }
+
+    /* Dock с glassmorphism */
+    #dock-container {
+        position: absolute; bottom: 10px; width: 100%;
+        display: flex; justify-content: center; z-index: 6000;
+    }
+    #dock {
+        background: rgba(20, 20, 20, 0.4);
+        backdrop-filter: blur(25px);
+        border: 1px solid rgba(255,255,255,0.1);
+        height: 70px; padding: 5px 10px; border-radius: 20px;
+        display: flex; align-items: flex-end; gap: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .dock-item {
+        width: 55px; height: 55px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        cursor: pointer; position: relative;
+    }
+    .dock-icon-svg { width: 100%; height: 100%; border-radius: 14px; }
+    .dock-item:hover { transform: scale(1.2) translateY(-10px); margin: 0 5px; }
+    .dock-dot {
+        width: 5px; height: 5px; background: rgba(255,255,255,0.6);
+        border-radius: 50%; position: absolute; bottom: -8px; display: none;
+    }
+    .dock-item.active .dock-dot { display: block; }
+
+    /* Windows */
+    .window {
+        position: absolute; background: rgba(30, 30, 32, 0.9);
+        backdrop-filter: blur(30px);
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.15);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        display: flex; flex-direction: column; overflow: hidden;
+        min-width: 300px; min-height: 200px;
+    }
+    
+    .window.opening { animation: winOpen 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes winOpen { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; }}
+
+    .window-header {
+        height: 30px; background: rgba(255,255,255,0.05);
+        display: flex; align-items: center; position: relative; cursor: grab;
+    }
+    
+    .traffic-lights { display: flex; gap: 8px; margin-left: 12px; z-index: 2; }
+    .t-btn {
+        width: 12px; height: 12px; border-radius: 50%;
+        display: flex; justify-content: center; align-items: center;
+        font-size: 8px; color: transparent; cursor: pointer;
+    }
+    .traffic-lights:hover .t-btn { color: rgba(0,0,0,0.6); }
+    .close-btn { background: #ff5f56; }
+    .min-btn { background: #ffbd2e; }
+    .max-btn { background: #27c93f; }
+
+    .window-title {
+        position: absolute; width: 100%; text-align: center;
+        font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8);
+        pointer-events: none;
+    }
+    .window-content { flex: 1; overflow: auto; position: relative; }
+
+    /* GPU Info Panel */
+    #gpu-info-panel {
+        position: fixed;
+        bottom: 100px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(0, 255, 0, 0.3);
+        border-radius: 12px;
+        padding: 15px;
+        z-index: 9999;
+        font-family: monospace;
+        font-size: 11px;
+        color: #0f0;
+        min-width: 250px;
+    }
+    #gpu-info-panel h3 {
+        margin: 0 0 10px 0;
+        color: #0ff;
+        font-size: 14px;
+    }
+    .gpu-metric {
+        display: flex;
+        justify-content: space-between;
+        margin: 5px 0;
+        padding: 3px 0;
+        border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+    }
+    .gpu-metric-label { color: #888; }
+    .gpu-metric-value { color: #0f0; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- WebGPU Background Canvas -->
+<canvas id="webgpu-background"></canvas>
+
+<!-- Boot Screen -->
+<div id="boot-screen">
+    <div class="apple-logo"></div>
+    <div class="boot-message">Initializing WebGPU Render Engine...</div>
+    <div class="boot-message" id="boot-status">Checking GPU compatibility...</div>
+    <div class="boot-message" id="boot-progress"></div>
+</div>
+
+<!-- GPU Info Panel -->
+<div id="gpu-info-panel" style="display: none;">
+    <h3>⚡ GPU Status</h3>
+    <div class="gpu-metric">
+        <span class="gpu-metric-label">Render Mode:</span>
+        <span class="gpu-metric-value" id="render-mode">WebGPU</span>
+    </div>
+    <div class="gpu-metric">
+        <span class="gpu-metric-label">FPS:</span>
+        <span class="gpu-metric-value" id="fps-display">60</span>
+    </div>
+    <div class="gpu-metric">
+        <span class="gpu-metric-label">Frame Time:</span>
+        <span class="gpu-metric-value" id="frametime-display">16ms</span>
+    </div>
+    <div class="gpu-metric">
+        <span class="gpu-metric-label">Render Passes:</span>
+        <span class="gpu-metric-value" id="render-passes">0</span>
+    </div>
+    <div class="gpu-metric">
+        <span class="gpu-metric-label">GPU Memory:</span>
+        <span class="gpu-metric-value" id="gpu-memory">0 MB</span>
+    </div>
+</div>
+
+<!-- Desktop -->
+<div id="desktop">
+    <!-- Menu Bar -->
+    <div id="menubar">
+        <div class="menu-left">
+            <i class="fab fa-apple" style="font-size: 16px;"></i>
+            <span id="active-app-name">Finder</span>
+            <span class="menu-item">File</span>
+            <span class="menu-item">Edit</span>
+            <span class="menu-item">View</span>
+        </div>
+        <div class="menu-right">
+            <span id="gpu-status">GPU ACTIVE</span>
+            <i class="fas fa-wifi"></i>
+            <span id="clock"></span>
+        </div>
+    </div>
+
+    <!-- Dock -->
+    <div id="dock-container">
+        <div id="dock">
+            <div class="dock-item" data-app="demo">
+                <svg class="dock-icon-svg" viewBox="0 0 100 100">
+                    <defs>
+                        <linearGradient id="demoGrad">
+                            <stop offset="0%" style="stop-color:#4A9EFF" />
+                            <stop offset="100%" style="stop-color:#1E5FD6" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="100" height="100" rx="18" fill="url(#demoGrad)"/>
+                    <text x="50" y="65" font-size="40" fill="white" text-anchor="middle" font-weight="bold">GPU</text>
+                </svg>
+                <div class="dock-dot"></div>
+            </div>
+
+            <div class="dock-item" data-app="telemetry">
+                <svg class="dock-icon-svg" viewBox="0 0 100 100">
+                    <defs>
+                        <linearGradient id="telemetryGrad">
+                            <stop offset="0%" style="stop-color:#00FF00" />
+                            <stop offset="100%" style="stop-color:#00AA00" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="100" height="100" rx="18" fill="url(#telemetryGrad)"/>
+                    <text x="50" y="65" font-size="35" fill="white" text-anchor="middle" font-weight="bold">📊</text>
+                </svg>
+                <div class="dock-dot"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Встраиваем весь JavaScript код для полной автономности -->
+<script>
+// Здесь будет весь код MicroISA, WebGPU Engine и интеграция
+// В реальном проекте это были бы отдельные модули
+
+console.log('='.repeat(60));
+console.log('🚀 macOS Web Experience - Stage 2: WebGPU Integration');
+console.log('='.repeat(60));
+
+// === MICROISA CORE (упрощённая версия для демо) ===
+const InstructionType = {
+    PAINT: 'PAINT',
+    GPU_COMPUTE: 'GPU_COMPUTE',
+    GPU_RENDER: 'GPU_RENDER',
+    MOUSE_READ: 'MOUSE_READ',
+    INPUT_READ: 'INPUT_READ',
+    DOM_CREATE: 'DOM_CREATE',
+    STYLE_UPDATE: 'STYLE_UPDATE',
+    CALL: 'CALL',
+    RETURN: 'RETURN'
+};
+
+class Instruction {
+    constructor(type, params = {}) {
+        this.type = type;
+        this.params = params;
+        this.duration = 0;
+        this.timestamp = performance.now();
+    }
+    
+    async execute(vm) {
+        const start = performance.now();
+        // Простая симуляция выполнения
+        await new Promise(resolve => setTimeout(resolve, 0));
+        this.duration = performance.now() - start;
+        return true;
+    }
+}
+
+class EnhancedMicroISA {
+    constructor() {
+        this.stats = {
+            totalInstructions: 0,
+            instructionsByType: new Map(),
+            gpuOperations: 0
+        };
+    }
+    
+    async initialize() {
+        console.log('✓ MicroISA VM initialized');
+        return true;
+    }
+    
+    async executeInstruction(type, params = {}) {
+        const instr = new Instruction(type, params);
+        await instr.execute(this);
+        
+        this.stats.totalInstructions++;
+        const count = this.stats.instructionsByType.get(type) || 0;
+        this.stats.instructionsByType.set(type, count + 1);
+        
+        if (type.includes('GPU')) {
+            this.stats.gpuOperations++;
+        }
+        
+        return instr;
+    }
+    
+    getStats() {
+        return {
+            totalInstructions: this.stats.totalInstructions,
+            gpuOperations: this.stats.gpuOperations,
+            instructionsByType: Object.fromEntries(this.stats.instructionsByType)
+        };
+    }
+}
+
+// === WEBGPU CONTEXT ===
+class WebGPUContext {
+    constructor() {
+        this.adapter = null;
+        this.device = null;
+        this.context = null;
+        this.canvas = null;
+        this.preferredFormat = null;
+        this.isReady = false;
+        this.stats = {
+            totalRenderPasses: 0,
+            lastFrameTime: 0,
+            fps: 0,
+            frameCount: 0
+        };
+    }
+    
+    async initialize(canvas) {
+        console.log('🎨 Initializing WebGPU...');
+        this.canvas = canvas;
+        
+        if (!navigator.gpu) {
+            console.warn('❌ WebGPU not supported');
+            return false;
+        }
+        
+        this.adapter = await navigator.gpu.requestAdapter({
+            powerPreference: 'high-performance'
+        });
+        
+        if (!this.adapter) {
+            console.warn('❌ No GPU adapter');
+            return false;
+        }
+        
+        this.device = await this.adapter.requestDevice();
+        this.context = canvas.getContext('webgpu');
+        this.preferredFormat = navigator.gpu.getPreferredCanvasFormat();
+        
+        this.context.configure({
+            device: this.device,
+            format: this.preferredFormat,
+            alphaMode: 'premultiplied'
+        });
+        
+        this.isReady = true;
+        console.log('✓ WebGPU initialized successfully');
+        console.log('  Format:', this.preferredFormat);
+        
+        return true;
+    }
+    
+    beginFrame() {
+        this.stats.lastFrameTime = performance.now();
+        return this.device.createCommandEncoder();
+    }
+    
+    submitFrame(encoder) {
+        this.device.queue.submit([encoder.finish()]);
+        
+        // Обновляем FPS
+        this.stats.frameCount++;
+        const now = performance.now();
+        const elapsed = now - this.stats.lastFrameTime;
+        this.stats.fps = Math.round(1000 / elapsed);
+    }
+    
+    resize(width, height) {
+        this.canvas.width = width;
+        this.canvas.height = height;
+    }
+    
+    getStats() {
+        return {...this.stats, isReady: this.isReady};
+    }
+}
+
+// === PROCEDURAL BACKGROUND ===
+class ProceduralBackground {
+    constructor(gpuContext, vm = null) {
+        this.gpu = gpuContext;
+        this.vm = vm;
+        this.params = {
+            time: 0,
+            mouseX: 0.5,
+            mouseY: 0.5,
+            clickX: 0.5,
+            clickY: 0.5,
+            waveIntensity: 0,
+            colorShift: 0
+        };
+        this.renderPipeline = null;
+        this.uniformBuffer = null;
+        this.bindGroup = null;
+        this.initialized = false;
+    }
+    
+    async initialize() {
+        console.log('🎨 Initializing Procedural Background...');
+        
+        // Создаём uniform buffer
+        const bufferSize = 64;
+        const uniformArray = new Float32Array(bufferSize / 4);
+        this.uniformBuffer = this.gpu.device.createBuffer({
+            size: bufferSize,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
+        });
+        new Float32Array(this.uniformBuffer.getMappedRange()).set(uniformArray);
+        this.uniformBuffer.unmap();
+        
+        // Создаём shader
+        const shaderModule = this.gpu.device.createShaderModule({
+            code: this.getShaderCode()
+        });
+        
+        // Создаём pipeline
+        this.renderPipeline = this.gpu.device.createRenderPipeline({
+            layout: 'auto',
+            vertex: {
+                module: shaderModule,
+                entryPoint: 'vertexMain'
+            },
+            fragment: {
+                module: shaderModule,
+                entryPoint: 'fragmentMain',
+                targets: [{ format: this.gpu.preferredFormat }]
+            },
+            primitive: {
+                topology: 'triangle-list'
+            }
+        });
+        
+        // Создаём bind group
+        this.bindGroup = this.gpu.device.createBindGroup({
+            layout: this.renderPipeline.getBindGroupLayout(0),
+            entries: [{
+                binding: 0,
+                resource: { buffer: this.uniformBuffer }
+            }]
+        });
+        
+        this.initialized = true;
+        console.log('✓ Procedural Background ready');
+    }
+    
+    getShaderCode() {
+        return `
+            struct Uniforms {
+                time: f32,
+                mouseX: f32,
+                mouseY: f32,
+                clickX: f32,
+                clickY: f32,
+                waveIntensity: f32,
+                colorShift: f32,
+                padding: f32
+            };
+            
+            @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+            
+            struct VertexOutput {
+                @builtin(position) position: vec4<f32>,
+                @location(0) uv: vec2<f32>
+            };
+            
+            @vertex
+            fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+                var output: VertexOutput;
+                let pos = array<vec2<f32>, 6>(
+                    vec2<f32>(-1.0, -1.0),
+                    vec2<f32>( 1.0, -1.0),
+                    vec2<f32>(-1.0,  1.0),
+                    vec2<f32>(-1.0,  1.0),
+                    vec2<f32>( 1.0, -1.0),
+                    vec2<f32>( 1.0,  1.0)
+                );
+                let p = pos[vertexIndex];
+                output.position = vec4<f32>(p, 0.0, 1.0);
+                output.uv = (p + 1.0) * 0.5;
+                return output;
+            }
+            
+            fn hash(p: vec2<f32>) -> f32 {
+                let h = dot(p, vec2<f32>(127.1, 311.7));
+                return fract(sin(h) * 43758.5453123);
+            }
+            
+            fn noise(p: vec2<f32>) -> f32 {
+                let i = floor(p);
+                let f = fract(p);
+                let u = f * f * (3.0 - 2.0 * f);
+                return mix(
+                    mix(hash(i + vec2<f32>(0.0, 0.0)), hash(i + vec2<f32>(1.0, 0.0)), u.x),
+                    mix(hash(i + vec2<f32>(0.0, 1.0)), hash(i + vec2<f32>(1.0, 1.0)), u.x),
+                    u.y
+                );
+            }
+            
+            @fragment
+            fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
+                let uv = input.uv;
+                
+                let c1 = vec3<f32>(0.65, 0.16, 0.96);
+                let c2 = vec3<f32>(0.34, 0.14, 0.84);
+                let c3 = vec3<f32>(0.04, 0.15, 0.46);
+                let c4 = vec3<f32>(0.11, 0.44, 0.61);
+                
+                var baseColor = mix(
+                    mix(c1, c2, uv.x),
+                    mix(c3, c4, uv.x),
+                    uv.y
+                );
+                
+                let noiseValue = noise(uv * 3.0 + uniforms.time * 0.3);
+                baseColor += vec3<f32>(noiseValue * 0.05);
+                
+                if (uniforms.waveIntensity > 0.01) {
+                    let clickPos = vec2<f32>(uniforms.clickX, uniforms.clickY);
+                    let dist = distance(uv, clickPos);
+                    let wavePhase = dist * 10.0 - uniforms.time * 5.0;
+                    let wave = sin(wavePhase) * 0.5 + 0.5;
+                    let attenuation = exp(-dist * 3.0) * uniforms.waveIntensity;
+                    baseColor += vec3<f32>(wave * attenuation * 0.3);
+                }
+                
+                let mousePos = vec2<f32>(uniforms.mouseX, uniforms.mouseY);
+                let mouseDist = distance(uv, mousePos);
+                let mouseGlow = exp(-mouseDist * 8.0) * 0.2;
+                baseColor += vec3<f32>(mouseGlow);
+                
+                return vec4<f32>(baseColor, 1.0);
+            }
+        `;
+    }
+    
+    update(deltaTime) {
+        this.params.time += deltaTime;
+        this.params.waveIntensity *= 0.95;
+        this.params.colorShift += deltaTime * 0.5;
+        
+        const uniformData = new Float32Array([
+            this.params.time,
+            this.params.mouseX,
+            this.params.mouseY,
+            this.params.clickX,
+            this.params.clickY,
+            this.params.waveIntensity,
+            this.params.colorShift,
+            0
+        ]);
+        
+        this.gpu.device.queue.writeBuffer(
+            this.uniformBuffer,
+            0,
+            uniformData
+        );
+    }
+    
+    onMouseMove(x, y) {
+        this.params.mouseX = x / this.gpu.canvas.width;
+        this.params.mouseY = 1.0 - (y / this.gpu.canvas.height);
+    }
+    
+    onClick(x, y) {
+        this.params.clickX = x / this.gpu.canvas.width;
+        this.params.clickY = 1.0 - (y / this.gpu.canvas.height);
+        this.params.waveIntensity = 1.0;
+        console.log('🌊 Wave triggered!');
+    }
+    
+    render(encoder) {
+        if (!this.initialized) return;
+        
+        if (this.vm) {
+            this.vm.executeInstruction(InstructionType.GPU_RENDER, {
+                operation: 'procedural_background'
+            });
+        }
+        
+        const textureView = this.gpu.context.getCurrentTexture().createView();
+        const renderPass = encoder.beginRenderPass({
+            colorAttachments: [{
+                view: textureView,
+                clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                loadOp: 'clear',
+                storeOp: 'store'
+            }]
+        });
+        
+        renderPass.setPipeline(this.renderPipeline);
+        renderPass.setBindGroup(0, this.bindGroup);
+        renderPass.draw(6);
+        renderPass.end();
+        
+        this.gpu.stats.totalRenderPasses++;
+    }
+}
+
+// === MAIN APPLICATION ===
+class Application {
+    constructor() {
+        this.vm = null;
+        this.gpu = null;
+        this.background = null;
+        this.running = false;
+        this.lastTime = performance.now();
+    }
+    
+    async initialize() {
+        console.log('🚀 Initializing Application...');
+        
+        // Инициализация MicroISA
+        $('#boot-status').text('Initializing MicroISA VM...');
+        await new Promise(r => setTimeout(r, 500));
+        
+        this.vm = new EnhancedMicroISA();
+        await this.vm.initialize();
+        window.microISAVM = this.vm;
+        
+        // Инициализация WebGPU
+        $('#boot-status').text('Initializing WebGPU...');
+        await new Promise(r => setTimeout(r, 500));
+        
+        const canvas = document.getElementById('webgpu-background');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        this.gpu = new WebGPUContext();
+        const gpuReady = await this.gpu.initialize(canvas);
+        
+        if (!gpuReady) {
+            $('#boot-status').text('⚠️ WebGPU not available, using fallback').css('color', '#ff0');
+            await new Promise(r => setTimeout(r, 2000));
+            $('#boot-screen').fadeOut(500);
+            return false;
+        }
+        
+        // Инициализация процедурного фона
+        $('#boot-status').text('Creating procedural background...');
+        await new Promise(r => setTimeout(r, 500));
+        
+        this.background = new ProceduralBackground(this.gpu, this.vm);
+        await this.background.initialize();
+        
+        // Настройка обработчиков событий
+        this.setupEventHandlers();
+        
+        $('#boot-status').text('✓ System ready!').css('color', '#0f0');
+        await new Promise(r => setTimeout(r, 500));
+        
+        console.log('✓ Application initialized successfully');
+        return true;
+    }
+    
+    setupEventHandlers() {
+        // Mouse move для интерактивного фона
+        document.addEventListener('mousemove', (e) => {
+            if (this.background) {
+                this.background.onMouseMove(e.clientX, e.clientY);
+            }
+        });
+        
+        // Click для волнового эффекта
+        document.addEventListener('click', (e) => {
+            if (this.background) {
+                this.background.onClick(e.clientX, e.clientY);
+            }
+        });
+        
+        // Resize
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('webgpu-background');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            this.gpu.resize(window.innerWidth, window.innerHeight);
+        });
+    }
+    
+    start() {
+        this.running = true;
+        this.renderLoop();
+        
+        // Обновляем UI метрики
+        setInterval(() => this.updateUI(), 500);
+    }
+    
+    renderLoop() {
+        if (!this.running) return;
+        
+        const currentTime = performance.now();
+        const deltaTime = (currentTime - this.lastTime) / 1000;
+        this.lastTime = currentTime;
+        
+        // Обновляем симуляцию
+        if (this.background) {
+            this.background.update(deltaTime);
+        }
+        
+        // Рендерим кадр
+        const encoder = this.gpu.beginFrame();
+        
+        if (this.background) {
+            this.background.render(encoder);
+        }
+        
+        this.gpu.submitFrame(encoder);
+        
+        // Следующий кадр
+        requestAnimationFrame(() => this.renderLoop());
+    }
+    
+    updateUI() {
+        const stats = this.gpu.getStats();
+        const vmStats = this.vm.getStats();
+        
+        $('#fps-display').text(stats.fps);
+        $('#frametime-display').text((1000 / stats.fps).toFixed(1) + 'ms');
+        $('#render-passes').text(stats.totalRenderPasses);
+        $('#gpu-memory').text('~5 MB'); // Примерная оценка
+        
+        $('#gpu-status').text(
+            `GPU: ${stats.fps}fps | ${vmStats.gpuOperations} ops`
+        );
+    }
+}
+
+// === WINDOW MANAGER (упрощённая версия) ===
+const wm = {
+    windows: [],
+    
+    openApp(appName) {
+        const winId = 'win-' + Date.now();
+        const $window = $(`
+            <div class="window opening" id="${winId}">
+                <div class="window-header">
+                    <div class="traffic-lights">
+                        <span class="t-btn close-btn">✕</span>
+                        <span class="t-btn min-btn">−</span>
+                        <span class="t-btn max-btn">+</span>
+                    </div>
+                    <div class="window-title">${appName.toUpperCase()}</div>
+                </div>
+                <div class="window-content" id="${winId}-content"></div>
+            </div>
+        `);
+        
+        const x = ($(window).width() - 700) / 2;
+        const y = ($(window).height() - 500) / 2;
+        $window.css({ left: x, top: y, width: 700, height: 500 });
+        
+        $('#desktop').append($window);
+        $window.draggable({ handle: '.window-header' });
+        $window.resizable({ minWidth: 400, minHeight: 300 });
+        
+        $window.find('.close-btn').on('click', () => {
+            $window.fadeOut(200, () => $window.remove());
+            $(`.dock-item[data-app="${appName}"]`).removeClass('active');
+        });
+        
+        this.renderContent(appName, $window.find('.window-content'));
+        this.windows.push({ id: winId, appName, $el: $window });
+        
+        $(`.dock-item[data-app="${appName}"]`).addClass('active');
+    },
+    
+    renderContent(appName, $container) {
+        if (appName === 'demo') {
+            $container.html(`
+                <div style="padding: 30px; color: white; text-align: center;">
+                    <h2 style="color: #0ff; margin-bottom: 20px;">🎨 WebGPU Demo</h2>
+                    <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                        This application uses WebGPU to render a procedural animated background.
+                        The entire background is computed on your GPU, allowing for complex
+                        visual effects without impacting CPU performance.
+                    </p>
+                    <div style="background: rgba(0,255,0,0.1); border: 1px solid #0f0; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                        <h3 style="color: #0f0; margin: 0 0 10px 0;">Try It:</h3>
+                        <p style="margin: 5px 0;">• Move your mouse to see the glow effect</p>
+                        <p style="margin: 5px 0;">• Click anywhere to create ripples</p>
+                        <p style="margin: 5px 0;">• Watch the procedural animation evolve</p>
+                    </div>
+                    <p style="font-size: 14px; color: #888; margin-top: 30px;">
+                        All rendering is happening on your GPU in real-time!
+                        Check the GPU Status panel in the corner for performance metrics.
+                    </p>
+                </div>
+            `);
+        } else if (appName === 'telemetry') {
+            $container.html(`
+                <div style="padding: 20px; color: #0f0; font-family: monospace; background: #000;">
+                    <h2 style="color: #0ff; border-bottom: 2px solid #0f0; padding-bottom: 10px;">
+                        📊 System Telemetry
+                    </h2>
+                    <div style="margin-top: 20px;">
+                        <h3 style="color: #0ff;">GPU Statistics</h3>
+                        <div id="telem-gpu-stats"></div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <h3 style="color: #0ff;">MicroISA VM Statistics</h3>
+                        <div id="telem-vm-stats"></div>
+                    </div>
+                </div>
+            `);
+            
+            setInterval(() => {
+                if (window.app) {
+                    const gpuStats = window.app.gpu.getStats();
+                    const vmStats = window.app.vm.getStats();
+                    
+                    $('#telem-gpu-stats').html(`
+                        <div style="color: #888;">FPS: <span style="color: #0f0;">${gpuStats.fps}</span></div>
+                        <div style="color: #888;">Render Passes: <span style="color: #0f0;">${gpuStats.totalRenderPasses}</span></div>
+                    `);
+                    
+                    $('#telem-vm-stats').html(`
+                        <div style="color: #888;">Total Instructions: <span style="color: #0f0;">${vmStats.totalInstructions}</span></div>
+                        <div style="color: #888;">GPU Operations: <span style="color: #ff0;">${vmStats.gpuOperations}</span></div>
+                    `);
+                }
+            }, 1000);
+        }
+    }
+};
+
+// === INITIALIZATION ===
+let app;
+
+async function initApp() {
+    app = new Application();
+    window.app = app;
+    
+    const success = await app.initialize();
+    
+    if (success) {
+        $('#boot-screen').fadeOut(500, () => {
+            $('#boot-screen').remove();
+            $('#gpu-info-panel').fadeIn();
+            app.start();
+            
+            // Auto-open demo window
+            setTimeout(() => wm.openApp('demo'), 600);
+        });
+    }
+}
+
+// === EVENT HANDLERS ===
+$('.dock-item').on('click', function() {
+    const app = $(this).data('app');
+    wm.openApp(app);
+});
+
+// Clock
+function updateClock() {
+    const now = new Date();
+    $('#clock').text(now.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    }));
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Start
+$(window).on('load', initApp);
+
+console.log('✓ Application ready to initialize');
+</script>
+
+</body>
+</html>

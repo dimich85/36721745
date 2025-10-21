@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>macOS - Stage 3: Virtual File System</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=SF+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+
+<style>
+    :root {
+        --text-color: #ffffff;
+        --accent: #007aff;
+        --system-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        --mono-font: 'SF Mono', 'Menlo', monospace;
+    }
+
+    * { box-sizing: border-box; user-select: none; }
+    body, html {
+        margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden;
+        font-family: var(--system-font); color: var(--text-color);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    #desktop {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    }
+
+    /* Menu Bar */
+    #menubar {
+        position: absolute; top: 0; width: 100%; height: 30px;
+        background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px);
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0 20px; font-size: 13px; font-weight: 500; z-index: 5000;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .menu-left, .menu-right { display: flex; gap: 15px; align-items: center; }
+    .menu-item:hover { background: rgba(255,255,255,0.1); border-radius: 4px; 
+                       padding: 2px 8px; margin: -2px -8px;}
+
+    /* Dock */
+    #dock-container {
+        position: absolute; bottom: 10px; width: 100%;
+        display: flex; justify-content: center; z-index: 6000;
+    }
+    #dock {
+        background: rgba(20, 20, 20, 0.4); backdrop-filter: blur(25px);
+        border: 1px solid rgba(255,255,255,0.1); height: 70px; padding: 5px 10px;
+        border-radius: 20px; display: flex; align-items: flex-end; gap: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .dock-item {
+        width: 55px; height: 55px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        cursor: pointer; position: relative;
+    }
+    .dock-icon { font-size: 32px; }
+    .dock-item:hover { transform: scale(1.2) translateY(-10px); margin: 0 5px; }
+    .dock-dot {
+        width: 5px; height: 5px; background: rgba(255,255,255,0.6);
+        border-radius: 50%; position: absolute; bottom: -8px; display: none;
+    }
+    .dock-item.active .dock-dot { display: block; }
+
+    /* Windows */
+    .window {
+        position: absolute; background: rgba(30, 30, 32, 0.95);
+        backdrop-filter: blur(30px); border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.15);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        display: flex; flex-direction: column; overflow: hidden;
+        min-width: 400px; min-height: 300px;
+    }
+    .window.opening { animation: winOpen 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes winOpen { from { transform: scale(0.8); opacity: 0; } 
+                         to { transform: scale(1); opacity: 1; }}
+
+    .window-header {
+        height: 30px; background: rgba(255,255,255,0.05);
+        display: flex; align-items: center; position: relative; cursor: grab;
+    }
+    .traffic-lights { display: flex; gap: 8px; margin-left: 12px; z-index: 2; }
+    .t-btn {
+        width: 12px; height: 12px; border-radius: 50%;
+        display: flex; justify-content: center; align-items: center;
+        font-size: 8px; color: transparent; cursor: pointer;
+    }
+    .traffic-lights:hover .t-btn { color: rgba(0,0,0,0.6); }
+    .close-btn { background: #ff5f56; }
+    .min-btn { background: #ffbd2e; }
+    .max-btn { background: #27c93f; }
+
+    .window-title {
+        position: absolute; width: 100%; text-align: center;
+        font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8);
+        pointer-events: none;
+    }
+    .window-content { flex: 1; overflow: auto; position: relative; }
+
+    /* Finder-specific styles */
+    .finder-layout {
+        display: flex; height: 100%;
+    }
+    .finder-sidebar {
+        width: 180px; background: rgba(0,0,0,0.3);
+        border-right: 1px solid rgba(255,255,255,0.1);
+        padding: 10px 0; overflow-y: auto;
+    }
+    .finder-main {
+        flex: 1; display: flex; flex-direction: column;
+    }
+    .finder-toolbar {
+        height: 40px; background: rgba(255,255,255,0.03);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        display: flex; align-items: center; padding: 0 15px; gap: 10px;
+    }
+    .finder-path {
+        flex: 1; font-size: 12px; color: #888;
+    }
+    .finder-view {
+        flex: 1; padding: 15px; overflow-y: auto;
+    }
+
+    /* Sidebar items */
+    .sidebar-section {
+        margin-bottom: 15px;
+    }
+    .sidebar-title {
+        font-size: 11px; color: #888; padding: 5px 15px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .sidebar-item {
+        padding: 5px 15px; cursor: pointer;
+        font-size: 13px; transition: background 0.2s;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-item:hover { background: rgba(255,255,255,0.1); }
+    .sidebar-item.active { background: var(--accent); }
+
+    /* File grid */
+    .file-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 15px;
+    }
+    .file-item {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 10px; cursor: pointer; border-radius: 8px;
+        transition: background 0.2s;
+    }
+    .file-item:hover { background: rgba(255,255,255,0.1); }
+    .file-item.selected { background: rgba(0, 122, 255, 0.3); }
+    .file-icon {
+        font-size: 48px; margin-bottom: 5px;
+    }
+    .file-name {
+        font-size: 12px; text-align: center; word-wrap: break-word;
+        max-width: 100%;
+    }
+
+    /* Toolbar buttons */
+    .toolbar-btn {
+        padding: 5px 12px; background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+        cursor: pointer; font-size: 12px; transition: all 0.2s;
+        display: flex; align-items: center; gap: 5px;
+    }
+    .toolbar-btn:hover { background: rgba(255,255,255,0.2); }
+
+    /* Search box */
+    .search-box {
+        flex: 1; max-width: 300px; position: relative;
+    }
+    .search-input {
+        width: 100%; padding: 6px 30px 6px 10px;
+        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 6px; color: white; font-size: 13px;
+    }
+    .search-input::placeholder { color: #888; }
+    .search-icon {
+        position: absolute; right: 10px; top: 50%;
+        transform: translateY(-50%); color: #888;
+    }
+
+    /* Text editor */
+    .text-editor {
+        height: 100%; display: flex; flex-direction: column;
+        background: rgba(20, 20, 25, 0.95);
+    }
+    .editor-toolbar {
+        height: 40px; background: rgba(255,255,255,0.03);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        display: flex; align-items: center; padding: 0 15px; gap: 10px;
+    }
+    .editor-area {
+        flex: 1; padding: 15px; overflow-y: auto;
+    }
+    .editor-textarea {
+        width: 100%; height: 100%; background: transparent;
+        border: none; color: white; font-family: var(--mono-font);
+        font-size: 13px; line-height: 1.6; resize: none;
+        outline: none;
+    }
+
+    /* VFS Stats Panel */
+    #vfs-stats-panel {
+        position: fixed; bottom: 100px; right: 20px;
+        background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px);
+        border: 1px solid rgba(0, 255, 0, 0.3); border-radius: 12px;
+        padding: 15px; z-index: 9999; font-family: monospace;
+        font-size: 11px; color: #0f0; min-width: 250px;
+    }
+    #vfs-stats-panel h3 {
+        margin: 0 0 10px 0; color: #0ff; font-size: 14px;
+    }
+    .vfs-metric {
+        display: flex; justify-content: space-between;
+        margin: 5px 0; padding: 3px 0;
+        border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+    }
+    .vfs-metric-label { color: #888; }
+    .vfs-metric-value { color: #0f0; font-weight: bold; }
+
+    /* Context menu */
+    .context-menu {
+        position: fixed; background: rgba(30, 30, 32, 0.95);
+        backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 8px; padding: 5px; z-index: 10000;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.5); min-width: 150px;
+    }
+    .context-item {
+        padding: 8px 15px; cursor: pointer;
+        border-radius: 4px; font-size: 13px;
+        transition: background 0.2s;
+    }
+    .context-item:hover { background: rgba(255,255,255,0.1); }
+</style>
+</head>
+<body>
+
+<!-- VFS Stats Panel -->
+<div id="vfs-stats-panel" style="display: none;">
+    <h3>💾 VFS Statistics</h3>
+    <div class="vfs-metric">
+        <span class="vfs-metric-label">Total Files:</span>
+        <span class="vfs-metric-value" id="stat-total-files">0</span>
+    </div>
+    <div class="vfs-metric">
+        <span class="vfs-metric-label">Cache Hit Rate:</span>
+        <span class="vfs-metric-value" id="stat-cache-hit">0%</span>
+    </div>
+    <div class="vfs-metric">
+        <span class="vfs-metric-label">Index Size:</span>
+        <span class="vfs-metric-value" id="stat-index-size">0</span>
+    </div>
+    <div class="vfs-metric">
+        <span class="vfs-metric-label">Unique Tokens:</span>
+        <span class="vfs-metric-value" id="stat-unique-tokens">0</span>
+    </div>
+    <div class="vfs-metric">
+        <span class="vfs-metric-label">Avg Search Time:</span>
+        <span class="vfs-metric-value" id="stat-search-time">0ms</span>
+    </div>
+</div>
+
+<!-- Desktop -->
+<div id="desktop">
+    <!-- Menu Bar -->
+    <div id="menubar">
+        <div class="menu-left">
+            <i class="fab fa-apple" style="font-size: 16px;"></i>
+            <span id="active-app-name">Finder</span>
+            <span class="menu-item">File</span>
+            <span class="menu-item">Edit</span>
+            <span class="menu-item">View</span>
+        </div>
+        <div class="menu-right">
+            <i class="fas fa-wifi"></i>
+            <span id="clock"></span>
+        </div>
+    </div>
+
+    <!-- Dock -->
+    <div id="dock-container">
+        <div id="dock">
+            <div class="dock-item" data-app="finder">
+                <i class="fas fa-smile dock-icon" style="color: #0084ff;"></i>
+                <div class="dock-dot"></div>
+            </div>
+            <div class="dock-item" data-app="textedit">
+                <i class="fas fa-file-alt dock-icon" style="color: #ffcc00;"></i>
+                <div class="dock-dot"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include VFS and Search modules inline -->
+<script>
+// Здесь будет весь код из предыдущих файлов, встроенный для автономности
+
+console.log('='.repeat(60));
+console.log('🚀 macOS Web Experience - Stage 3: Virtual File System');
+console.log('='.repeat(60));
+
+// === SIMPLE MICROISA (для телеметрии) ===
+const InstructionType = {
+    FILE_CREATE: 'FILE_CREATE',
+    FILE_READ: 'FILE_READ',
+    FILE_WRITE: 'FILE_WRITE',
+    FILE_DELETE: 'FILE_DELETE',
+    DIR_CREATE: 'DIR_CREATE',
+    PATH_RESOLVE: 'PATH_RESOLVE',
+    INDEX_BUILD: 'INDEX_BUILD',
+    SEARCH_QUERY: 'SEARCH_QUERY',
+    SEARCH_TAGS: 'SEARCH_TAGS'
+};
+
+class SimpleMicroISA {
+    constructor() {
+        this.stats = new Map();
+    }
+    
+    executeInstruction(type, params = {}) {
+        const count = this.stats.get(type) || 0;
+        this.stats.set(type, count + 1);
+    }
+    
+    getStats() {
+        return Object.fromEntries(this.stats);
+    }
+}
+
+// === VFS CORE (встроенная версия) ===
+class FSNode {
+    constructor(name, type, parent = null) {
+        this.id = Date.now() + Math.random().toString(36).substr(2, 9);
+        this.name = name;
+        this.type = type;
+        this.parent = parent;
+        this.metadata = {
+            created: new Date(),
+            modified: new Date(),
+            accessed: new Date(),
+            size: 0,
+            permissions: 0o755,
+            owner: 'user',
+            group: 'staff',
+            hidden: false
+        };
+        this.tags = new Set();
+    }
+    
+    getPath() {
+        if (this.parent === null) return '/';
+        const parentPath = this.parent.getPath();
+        return parentPath === '/' ? '/' + this.name : parentPath + '/' + this.name;
+    }
+    
+    touch() {
+        this.metadata.accessed = new Date();
+    }
+}
+
+class File extends FSNode {
+    constructor(name, content = '', mimeType = 'text/plain', parent = null) {
+        super(name, 'file', parent);
+        this._content = content;
+        this.mimeType = mimeType;
+        this.updateSize();
+    }
+    
+    get content() {
+        this.touch();
+        return this._content;
+    }
+    
+    set content(newContent) {
+        this._content = newContent;
+        this.metadata.modified = new Date();
+        this.updateSize();
+    }
+    
+    updateSize() {
+        if (typeof this._content === 'string') {
+            this.metadata.size = new TextEncoder().encode(this._content).length;
+        } else {
+            this.metadata.size = 0;
+        }
+    }
+    
+    getExtension() {
+        const parts = this.name.split('.');
+        return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+    }
+    
+    isText() {
+        return this.mimeType.startsWith('text/') || 
+               this.mimeType === 'application/json';
+    }
+}
+
+class Directory extends FSNode {
+    constructor(name, parent = null) {
+        super(name, 'directory', parent);
+        this.children = new Map();
+    }
+    
+    addChild(node) {
+        if (this.children.has(node.name)) {
+            throw new Error(`Item '${node.name}' already exists`);
+        }
+        node.parent = this;
+        this.children.set(node.name, node);
+        this.metadata.modified = new Date();
+        this.updateSize();
+    }
+    
+    removeChild(name) {
+        const removed = this.children.delete(name);
+        if (removed) {
+            this.metadata.modified = new Date();
+            this.updateSize();
+        }
+        return removed;
+    }
+    
+    getChild(name) {
+        return this.children.get(name);
+    }
+    
+    hasChild(name) {
+        return this.children.has(name);
+    }
+    
+    getChildren() {
+        return Array.from(this.children.values());
+    }
+    
+    getFiles() {
+        return this.getChildren().filter(c => c.type === 'file');
+    }
+    
+    getDirectories() {
+        return this.getChildren().filter(c => c.type === 'directory');
+    }
+    
+    walkFiles(callback) {
+        for (const child of this.children.values()) {
+            if (child.type === 'file') {
+                callback(child);
+            } else if (child.type === 'directory') {
+                child.walkFiles(callback);
+            }
+        }
+    }
+    
+    countFiles() {
+        let count = 0;
+        this.walkFiles(() => count++);
+        return count;
+    }
+    
+    updateSize() {
+        let totalSize = 0;
+        for (const child of this.children.values()) {
+            totalSize += child.metadata.size;
+        }
+        this.metadata.size = totalSize;
+    }
+}
+
+class VirtualFileSystem {
+    constructor(vm = null) {
+        this.vm = vm;
+        this.root = new Directory('root', null);
+        this.cwd = this.root;
+        this.cache = new Map();
+        this.maxCacheSize = 100;
+        this.stats = {
+            totalReads: 0,
+            totalWrites: 0,
+            totalDeletes: 0,
+            cacheHits: 0,
+            cacheMisses: 0
+        };
+        this.initializeDefaultStructure();
+        console.log('✓ VFS initialized');
+    }
+    
+    initializeDefaultStructure() {
+        const defaultDirs = ['Desktop', 'Documents', 'Downloads', 
+                            'Pictures', 'Music', 'Videos', 'Applications'];
+        for (const dirName of defaultDirs) {
+            this.root.addChild(new Directory(dirName, this.root));
+        }
+    }
+    
+    parsePath(path) {
+        path = path.trim();
+        let parts = path.split('/').filter(p => p.length > 0);
+        const normalized = [];
+        for (const part of parts) {
+            if (part === '.') continue;
+            else if (part === '..') {
+                if (normalized.length > 0) normalized.pop();
+            } else {
+                normalized.push(part);
+            }
+        }
+        return normalized;
+    }
+    
+    resolvePath(path, startDir = null) {
+        if (this.vm) this.vm.executeInstruction('PATH_RESOLVE', { path });
+        let current = path.startsWith('/') ? this.root : (startDir || this.cwd);
+        const parts = this.parsePath(path);
+        if (parts.length === 0) return current;
+        
+        for (const part of parts) {
+            if (current.type !== 'directory') return null;
+            const next = current.getChild(part);
+            if (!next) return null;
+            current = next;
+        }
+        return current;
+    }
+    
+    createFile(path, content = '', mimeType = 'text/plain') {
+        if (this.vm) this.vm.executeInstruction('FILE_CREATE', { path });
+        try {
+            const parts = this.parsePath(path);
+            const fileName = parts.pop();
+            if (!fileName) return null;
+            
+            const parentPath = parts.length > 0 ? '/' + parts.join('/') : '/';
+            const parentDir = this.resolvePath(parentPath);
+            if (!parentDir || parentDir.type !== 'directory') return null;
+            if (parentDir.hasChild(fileName)) return null;
+            
+            const file = new File(fileName, content, mimeType, parentDir);
+            parentDir.addChild(file);
+            this.stats.totalWrites++;
+            console.log('✓ File created:', file.getPath());
+            return file;
+        } catch (error) {
+            console.error('Failed to create file:', error);
+            return null;
+        }
+    }
+    
+    readFile(path) {
+        if (this.cache.has(path)) {
+            this.stats.cacheHits++;
+            const file = this.cache.get(path);
+            if (this.vm) this.vm.executeInstruction('FILE_READ', { path, cached: true });
+            return file.content;
+        }
+        
+        this.stats.cacheMisses++;
+        const node = this.resolvePath(path);
+        if (!node || node.type !== 'file') return null;
+        
+        this.addToCache(path, node);
+        if (this.vm) this.vm.executeInstruction('FILE_READ', { path, cached: false });
+        this.stats.totalReads++;
+        return node.content;
+    }
+    
+    writeFile(path, content, mimeType = 'text/plain') {
+        const node = this.resolvePath(path);
+        if (node) {
+            if (node.type !== 'file') return false;
+            node.content = content;
+            this.cache.set(path, node);
+            if (this.vm) this.vm.executeInstruction('FILE_WRITE', { path });
+            this.stats.totalWrites++;
+            return true;
+        } else {
+            const file = this.createFile(path, content, mimeType);
+            return file !== null;
+        }
+    }
+    
+    createDirectory(path) {
+        if (this.vm) this.vm.executeInstruction('DIR_CREATE', { path });
+        try {
+            const parts = this.parsePath(path);
+            const dirName = parts.pop();
+            if (!dirName) return null;
+            
+            const parentPath = parts.length > 0 ? '/' + parts.join('/') : '/';
+            const parentDir = this.resolvePath(parentPath);
+            if (!parentDir || parentDir.type !== 'directory') return null;
+            if (parentDir.hasChild(dirName)) return null;
+            
+            const dir = new Directory(dirName, parentDir);
+            parentDir.addChild(dir);
+            console.log('✓ Directory created:', dir.getPath());
+            return dir;
+        } catch (error) {
+            console.error('Failed to create directory:', error);
+            return null;
+        }
+    }
+    
+    delete(path, recursive = false) {
+        const node = this.resolvePath(path);
+        if (!node || node === this.root) return false;
+        if (node.type === 'directory' && !node.isEmpty() && !recursive) return false;
+        
+        const parent = node.parent;
+        parent.removeChild(node.name);
+        this.cache.delete(path);
+        if (this.vm) this.vm.executeInstruction('FILE_DELETE', { path });
+        this.stats.totalDeletes++;
+        console.log('✓ Deleted:', path);
+        return true;
+    }
+    
+    addToCache(path, file) {
+        if (this.cache.size >= this.maxCacheSize) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(path, file);
+    }
+    
+    getStats() {
+        return {
+            ...this.stats,
+            totalFiles: this.root.countFiles(),
+            cacheSize: this.cache.size,
+            cacheHitRate: this.stats.totalReads > 0 
+                ? ((this.stats.cacheHits / (this.stats.cacheHits + this.stats.cacheMisses)) * 100).toFixed(1) + '%'
+                : '0%'
+        };
+    }
+}
+
+// === VFS INDEXING (встроенная версия) ===
+class Tokenizer {
+    constructor() {
+        this.stopWords = new Set([
+            'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
+            'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
+            'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have', 'had'
+        ]);
+        this.minTokenLength = 2;
+    }
+    
+    tokenize(text) {
+        if (!text || typeof text !== 'string') return [];
+        text = text.toLowerCase();
+        const tokens = text.split(/\W+/);
+        return tokens.filter(token => 
+            token && !this.stopWords.has(token) && token.length >= this.minTokenLength
+        );
+    }
+    
+    tokenizeWithFrequencies(text) {
+        const tokens = this.tokenize(text);
+        const frequencies = new Map();
+        for (const token of tokens) {
+            const count = frequencies.get(token) || 0;
+            frequencies.set(token, count + 1);
+        }
+        return frequencies;
+    }
+}
+
+class InvertedIndex {
+    constructor() {
+        this.index = new Map();
+        this.documents = new Map();
+        this.documentCount = 0;
+        this.tokenizer = new Tokenizer();
+        this.stats = { totalTokens: 0, uniqueTokens: 0, lastIndexTime: 0 };
+    }
+    
+    indexFile(file) {
+        const content = file.content;
+        if (!file.isText() || !content) return;
+        
+        const fileId = file.id;
+        const filePath = file.getPath();
+        
+        this.documents.set(fileId, {
+            id: fileId,
+            path: filePath,
+            name: file.name,
+            size: file.metadata.size,
+            modified: file.metadata.modified
+        });
+        
+        const tokenFrequencies = this.tokenizer.tokenizeWithFrequencies(content);
+        
+        for (const [token, frequency] of tokenFrequencies) {
+            if (!this.index.has(token)) {
+                this.index.set(token, []);
+                this.stats.uniqueTokens++;
+            }
+            const postingList = this.index.get(token);
+            postingList.push({
+                fileId: fileId,
+                filePath: filePath,
+                termFrequency: frequency,
+                documentLength: content.length
+            });
+            this.stats.totalTokens++;
+        }
+        this.documentCount++;
+    }
+    
+    indexFileSystem(vfs) {
+        console.log('🔍 Building search index...');
+        this.clear();
+        vfs.root.walkFiles((file) => this.indexFile(file));
+        console.log(`✓ Indexed ${this.documentCount} files with ${this.stats.uniqueTokens} unique tokens`);
+    }
+    
+    search(query, maxResults = 10) {
+        const queryTokens = this.tokenizer.tokenize(query);
+        if (queryTokens.length === 0) return [];
+        
+        const candidates = new Map();
+        
+        for (const token of queryTokens) {
+            const postingList = this.index.get(token);
+            if (!postingList) continue;
+            
+            const idf = Math.log(this.documentCount / postingList.length);
+            
+            for (const posting of postingList) {
+                const fileId = posting.fileId;
+                const tf = posting.termFrequency / posting.documentLength;
+                const tfidf = tf * idf;
+                const currentScore = candidates.get(fileId) || 0;
+                candidates.set(fileId, currentScore + tfidf);
+            }
+        }
+        
+        const results = [];
+        for (const [fileId, score] of candidates) {
+            const doc = this.documents.get(fileId);
+            if (doc) {
+                results.push({ ...doc, score });
+            }
+        }
+        
+        results.sort((a, b) => b.score - a.score);
+        return results.slice(0, maxResults);
+    }
+    
+    clear() {
+        this.index.clear();
+        this.documents.clear();
+        this.documentCount = 0;
+        this.stats.totalTokens = 0;
+        this.stats.uniqueTokens = 0;
+    }
+    
+    getStats() {
+        return { ...this.stats, documentCount: this.documentCount };
+    }
+}
+
+class GPUSearchEngine {
+    constructor(vm = null) {
+        this.vm = vm;
+        this.cpuIndex = new InvertedIndex();
+        this.stats = { totalSearches: 0, averageCPUTime: 0 };
+    }
+    
+    indexFileSystem(vfs) {
+        if (this.vm) this.vm.executeInstruction('INDEX_BUILD', {});
+        this.cpuIndex.indexFileSystem(vfs);
+    }
+    
+    async search(query, maxResults = 10) {
+        this.stats.totalSearches++;
+        if (this.vm) this.vm.executeInstruction('SEARCH_QUERY', { query });
+        
+        const startTime = performance.now();
+        const results = this.cpuIndex.search(query, maxResults);
+        const searchTime = performance.now() - startTime;
+        
+        if (this.stats.averageCPUTime === 0) {
+            this.stats.averageCPUTime = searchTime;
+        } else {
+            this.stats.averageCPUTime = (this.stats.averageCPUTime * 0.9) + (searchTime * 0.1);
+        }
+        
+        return results;
+    }
+    
+    getStats() {
+        return { ...this.stats, indexStats: this.cpuIndex.getStats() };
+    }
+}
+
+// === APPLICATION ===
+class Application {
+    constructor() {
+        this.vm = new SimpleMicroISA();
+        this.vfs = new VirtualFileSystem(this.vm);
+        this.searchEngine = new GPUSearchEngine(this.vm);
+        this.currentDirectory = this.vfs.root;
+        this.selectedFile = null;
+        
+        window.app = this;
+    }
+    
+    async initialize() {
+        console.log('🚀 Initializing Application...');
+        
+        // Create some demo files
+        this.createDemoFiles();
+        
+        // Build search index
+        this.searchEngine.indexFileSystem(this.vfs);
+        
+        // Setup UI
+        this.setupEventHandlers();
+        
+        // Update stats
+        setInterval(() => this.updateStats(), 1000);
+        
+        $('#vfs-stats-panel').fadeIn();
+        
+        console.log('✓ Application ready');
+    }
+    
+    createDemoFiles() {
+        console.log('📝 Creating demo files...');
+        
+        // Documents
+        this.vfs.createFile('/Documents/Welcome.txt', 
+            'Welcome to the Virtual File System! This is a demo file showing how VFS works. You can create, edit, and search files instantly.');
+        
+        this.vfs.createFile('/Documents/Tech Article.txt',
+            'Machine learning and artificial intelligence are transforming the technology industry. Neural networks enable computers to learn from data without explicit programming.');
+        
+        this.vfs.createFile('/Documents/Recipe.txt',
+            'Chocolate Chip Cookies Recipe: Mix flour, sugar, butter, and chocolate chips. Bake at 350F for 12 minutes. Enjoy with milk!');
+        
+        // Desktop
+        this.vfs.createFile('/Desktop/TODO.txt',
+            'TODO List:\n- Learn about virtual file systems\n- Try the search feature\n- Create new files\n- Organize with folders');
+        
+        // Code samples
+        this.vfs.createDirectory('/Documents/Projects');
+        this.vfs.createFile('/Documents/Projects/hello.js',
+            'function greet(name) {\n  console.log(`Hello, ${name}!`);\n}\n\ngreet("World");',
+            'application/javascript');
+        
+        console.log('✓ Demo files created');
+    }
+    
+    setupEventHandlers() {
+        // Dock clicks
+        $('.dock-item').on('click', function() {
+            const app = $(this).data('app');
+            if (app === 'finder') {
+                window.app.openFinder();
+            } else if (app === 'textedit') {
+                window.app.openTextEdit();
+            }
+        });
+    }
+    
+    openFinder() {
+        const winId = 'finder-' + Date.now();
+        const $window = $(`
+            <div class="window opening" id="${winId}">
+                <div class="window-header">
+                    <div class="traffic-lights">
+                        <span class="t-btn close-btn">✕</span>
+                        <span class="t-btn min-btn">−</span>
+                        <span class="t-btn max-btn">+</span>
+                    </div>
+                    <div class="window-title">Finder</div>
+                </div>
+                <div class="window-content">
+                    <div class="finder-layout">
+                        <div class="finder-sidebar">
+                            <div class="sidebar-section">
+                                <div class="sidebar-title">Favorites</div>
+                                <div class="sidebar-item active" data-path="/">
+                                    <i class="fas fa-home"></i> Home
+                                </div>
+                                <div class="sidebar-item" data-path="/Desktop">
+                                    <i class="fas fa-desktop"></i> Desktop
+                                </div>
+                                <div class="sidebar-item" data-path="/Documents">
+                                    <i class="fas fa-file"></i> Documents
+                                </div>
+                                <div class="sidebar-item" data-path="/Downloads">
+                                    <i class="fas fa-download"></i> Downloads
+                                </div>
+                            </div>
+                        </div>
+                        <div class="finder-main">
+                            <div class="finder-toolbar">
+                                <div class="toolbar-btn" id="btn-new-folder">
+                                    <i class="fas fa-folder-plus"></i> New Folder
+                                </div>
+                                <div class="toolbar-btn" id="btn-new-file">
+                                    <i class="fas fa-file-plus"></i> New File
+                                </div>
+                                <div class="toolbar-btn" id="btn-delete">
+                                    <i class="fas fa-trash"></i> Delete
+                                </div>
+                                <div class="search-box">
+                                    <input type="text" class="search-input" id="search-files" 
+                                           placeholder="Search files...">
+                                    <i class="fas fa-search search-icon"></i>
+                                </div>
+                                <div class="finder-path" id="current-path">/</div>
+                            </div>
+                            <div class="finder-view" id="file-view">
+                                <!-- Files will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+        
+        $window.css({ left: 100, top: 80, width: 900, height: 600 });
+        $('#desktop').append($window);
+        $window.draggable({ handle: '.window-header' });
+        $window.resizable({ minWidth: 600, minHeight: 400 });
+        
+        // Close button
+        $window.find('.close-btn').on('click', () => {
+            $window.fadeOut(200, () => $window.remove());
+            $('.dock-item[data-app="finder"]').removeClass('active');
+        });
+        
+        // Toolbar buttons
+        $window.find('#btn-new-folder').on('click', () => this.createNewFolder());
+        $window.find('#btn-new-file').on('click', () => this.createNewFile());
+        $window.find('#btn-delete').on('click', () => this.deleteSelected());
+        
+        // Search
+        $window.find('#search-files').on('input', (e) => {
+            const query = $(e.target).val();
+            if (query.length > 0) {
+                this.performSearch(query);
+            } else {
+                this.renderDirectory(this.currentDirectory);
+            }
+        });
+        
+        // Sidebar navigation
+        $window.find('.sidebar-item').on('click', function() {
+            const path = $(this).data('path');
+            const dir = window.app.vfs.resolvePath(path);
+            if (dir) {
+                window.app.navigateToDirectory(dir);
+                $('.sidebar-item').removeClass('active');
+                $(this).addClass('active');
+            }
+        });
+        
+        // Initial render
+        this.renderDirectory(this.currentDirectory);
+        
+        $('.dock-item[data-app="finder"]').addClass('active');
+    }
+    
+    renderDirectory(dir) {
+        this.currentDirectory = dir;
+        $('#current-path').text(dir.getPath());
+        
+        const children = dir.getChildren();
+        const $view = $('#file-view');
+        $view.empty();
+        
+        if (children.length === 0) {
+            $view.append('<div style="color: #888; text-align: center; margin-top: 50px;">This folder is empty</div>');
+            return;
+        }
+        
+        const $grid = $('<div class="file-grid"></div>');
+        
+        for (const child of children) {
+            const icon = child.type === 'directory' 
+                ? '<i class="fas fa-folder file-icon" style="color: #5B9FD7;"></i>'
+                : '<i class="fas fa-file-alt file-icon" style="color: #888;"></i>';
+            
+            const $item = $(`
+                <div class="file-item" data-id="${child.id}">
+                    ${icon}
+                    <div class="file-name">${child.name}</div>
+                </div>
+            `);
+            
+            $item.on('click', () => {
+                $('.file-item').removeClass('selected');
+                $item.addClass('selected');
+                this.selectedFile = child;
+            });
+            
+            $item.on('dblclick', () => {
+                if (child.type === 'directory') {
+                    this.navigateToDirectory(child);
+                } else {
+                    this.openTextEdit(child);
+                }
+            });
+            
+            $grid.append($item);
+        }
+        
+        $view.append($grid);
+    }
+    
+    navigateToDirectory(dir) {
+        this.renderDirectory(dir);
+    }
+    
+    createNewFolder() {
+        const name = prompt('Folder name:');
+        if (name) {
+            const path = this.currentDirectory.getPath() + '/' + name;
+            const dir = this.vfs.createDirectory(path);
+            if (dir) {
+                this.renderDirectory(this.currentDirectory);
+                this.searchEngine.indexFileSystem(this.vfs);
+            }
+        }
+    }
+    
+    createNewFile() {
+        const name = prompt('File name:');
+        if (name) {
+            const path = this.currentDirectory.getPath() + '/' + name;
+            const file = this.vfs.createFile(path, '');
+            if (file) {
+                this.renderDirectory(this.currentDirectory);
+                this.searchEngine.indexFileSystem(this.vfs);
+                this.openTextEdit(file);
+            }
+        }
+    }
+    
+    deleteSelected() {
+        if (!this.selectedFile) {
+            alert('Please select a file or folder');
+            return;
+        }
+        
+        if (confirm(`Delete "${this.selectedFile.name}"?`)) {
+            this.vfs.delete(this.selectedFile.getPath(), true);
+            this.selectedFile = null;
+            this.renderDirectory(this.currentDirectory);
+            this.searchEngine.indexFileSystem(this.vfs);
+        }
+    }
+    
+    async performSearch(query) {
+        console.log('🔍 Searching for:', query);
+        const results = await this.searchEngine.search(query);
+        
+        const $view = $('#file-view');
+        $view.empty();
+        
+        if (results.length === 0) {
+            $view.append('<div style="color: #888; text-align: center; margin-top: 50px;">No results found</div>');
+            return;
+        }
+        
+        const $grid = $('<div class="file-grid"></div>');
+        
+        for (const result of results) {
+            const file = this.vfs.resolvePath(result.path);
+            if (!file) continue;
+            
+            const $item = $(`
+                <div class="file-item">
+                    <i class="fas fa-file-alt file-icon" style="color: #888;"></i>
+                    <div class="file-name">${file.name}</div>
+                </div>
+            `);
+            
+            $item.on('dblclick', () => this.openTextEdit(file));
+            $grid.append($item);
+        }
+        
+        $view.append($grid);
+        console.log(`✓ Found ${results.length} results`);
+    }
+    
+    openTextEdit(file = null) {
+        const winId = 'textedit-' + Date.now();
+        const content = file ? file.content : '';
+        const fileName = file ? file.name : 'Untitled';
+        
+        const $window = $(`
+            <div class="window opening" id="${winId}">
+                <div class="window-header">
+                    <div class="traffic-lights">
+                        <span class="t-btn close-btn">✕</span>
+                        <span class="t-btn min-btn">−</span>
+                        <span class="t-btn max-btn">+</span>
+                    </div>
+                    <div class="window-title">${fileName}</div>
+                </div>
+                <div class="window-content">
+                    <div class="text-editor">
+                        <div class="editor-toolbar">
+                            <div class="toolbar-btn" id="btn-save">
+                                <i class="fas fa-save"></i> Save
+                            </div>
+                            <div class="toolbar-btn" id="btn-save-as">
+                                <i class="fas fa-file-export"></i> Save As
+                            </div>
+                        </div>
+                        <div class="editor-area">
+                            <textarea class="editor-textarea" id="editor-${winId}">${content}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+        
+        $window.css({ left: 200, top: 100, width: 700, height: 500 });
+        $('#desktop').append($window);
+        $window.draggable({ handle: '.window-header' });
+        $window.resizable({ minWidth: 400, minHeight: 300 });
+        
+        $window.find('.close-btn').on('click', () => {
+            $window.fadeOut(200, () => $window.remove());
+            if ($('.window').length === 1) {
+                $('.dock-item[data-app="textedit"]').removeClass('active');
+            }
+        });
+        
+        $window.find('#btn-save').on('click', () => {
+            if (file) {
+                const newContent = $window.find('.editor-textarea').val();
+                file.content = newContent;
+                console.log('✓ File saved:', file.getPath());
+                this.searchEngine.indexFileSystem(this.vfs);
+            } else {
+                alert('Please use Save As for new files');
+            }
+        });
+        
+        $window.find('#btn-save-as').on('click', () => {
+            const name = prompt('File name:');
+            if (name) {
+                const content = $window.find('.editor-textarea').val();
+                const path = this.currentDirectory.getPath() + '/' + name;
+                this.vfs.createFile(path, content, 'text/plain');
+                this.searchEngine.indexFileSystem(this.vfs);
+                $window.find('.window-title').text(name);
+            }
+        });
+        
+        $('.dock-item[data-app="textedit"]').addClass('active');
+    }
+    
+    updateStats() {
+        const vfsStats = this.vfs.getStats();
+        const searchStats = this.searchEngine.getStats();
+        
+        $('#stat-total-files').text(vfsStats.totalFiles);
+        $('#stat-cache-hit').text(vfsStats.cacheHitRate);
+        $('#stat-index-size').text(searchStats.indexStats.documentCount);
+        $('#stat-unique-tokens').text(searchStats.indexStats.uniqueTokens);
+        $('#stat-search-time').text(searchStats.averageCPUTime.toFixed(2) + 'ms');
+    }
+}
+
+// === INITIALIZATION ===
+$(window).on('load', async () => {
+    const app = new Application();
+    await app.initialize();
+    
+    // Auto-open Finder
+    setTimeout(() => app.openFinder(), 500);
+});
+
+// Clock
+function updateClock() {
+    const now = new Date();
+    $('#clock').text(now.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    }));
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+console.log('✓ Ready to launch');
+</script>
+
+</body>
+</html>
