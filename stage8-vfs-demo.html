@@ -518,7 +518,7 @@
         let businessLogic = {};
 
         // UI Elements
-        const console = document.getElementById('console');
+        const consoleElement = document.getElementById('console');
         const vfsTree = document.getElementById('vfsTree');
         const progressBar = document.getElementById('progressBar');
 
@@ -534,8 +534,8 @@
             const line = document.createElement('div');
             line.className = `console-line ${type}`;
             line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            console.appendChild(line);
-            console.scrollTop = console.scrollHeight;
+            consoleElement.appendChild(line);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
         }
 
         // Update VFS tree view
