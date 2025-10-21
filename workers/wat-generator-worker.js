@@ -686,8 +686,8 @@ function generateAll(profilesData, optimizations) {
 
     for (const profile of profiles) {
         // Get optimizations for this function
-        const funcOpts = optimizations.functionOpts?.find(
-            f => f.functionName === profile.name
+        const funcOpts = optimizations.functionOptimizations?.find(
+            f => f.function === profile.name
         );
 
         const optsToApply = funcOpts?.optimizations || [];

@@ -376,12 +376,12 @@ class ProgressiveLoaderVFS {
                     callGraph: profiles.callGraph
                 });
 
-                this.stats.optimizedFunctions = analysis.functionOpts.length;
+                this.stats.optimizedFunctions = analysis.functionOptimizations.length;
 
                 console.log(`✓ AI analysis complete`);
-                console.log(`  Functions to optimize: ${analysis.functionOpts.length}`);
-                console.log(`  Global optimizations: ${analysis.globalOpts.length}`);
-                console.log(`  Expected speedup: ${analysis.totalExpectedSpeedup.toFixed(2)}x`);
+                console.log(`  Functions to optimize: ${analysis.functionOptimizations.length}`);
+                console.log(`  Global optimizations: ${analysis.globalOptimizations.length}`);
+                console.log(`  Expected speedup: ${analysis.statistics.estimatedTotalSpeedup.toFixed(2)}x`);
 
                 return analysis;
             });
