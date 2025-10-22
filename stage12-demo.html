@@ -364,9 +364,9 @@
 
                 <div class="examples">
                     <div class="example-btn" onclick="loadExample('primes')">Найти простые числа</div>
-                    <div class="example-btn" onclick="loadExample('fibonacci')">Числа Фибоначчи</div>
+                    <div class="example-btn" onclick="loadExample('check_prime')">Проверка простоты</div>
                     <div class="example-btn" onclick="loadExample('sort')">Сортировка массива</div>
-                    <div class="example-btn" onclick="loadExample('matrix')">Умножение матриц</div>
+                    <div class="example-btn" onclick="loadExample('gcd')">НОД (GCD)</div>
                 </div>
 
                 <div class="input-group">
@@ -378,10 +378,10 @@
                     <label>Тип операции:</label>
                     <select id="operationType">
                         <option value="find_primes">Поиск простых чисел</option>
-                        <option value="fibonacci">Числа Фибоначчи</option>
-                        <option value="sort">Сортировка</option>
-                        <option value="matrix_multiply">Умножение матриц</option>
-                        <option value="search">Поиск в массиве</option>
+                        <option value="check_if_prime">Проверка на простоту</option>
+                        <option value="sort_array">Сортировка массива</option>
+                        <option value="binary_search">Бинарный поиск</option>
+                        <option value="gcd">Наибольший общий делитель</option>
                     </select>
                 </div>
 
@@ -503,7 +503,6 @@
         window.addEventListener('load', async () => {
             console.log('Initializing Code Generation System...');
             codeGenSystem = new CodeGenerationSystem();
-            await codeGenSystem.initialize();
             console.log('System ready!');
         });
 
@@ -515,20 +514,20 @@
                     operation: 'find_primes',
                     size: 10000
                 },
-                fibonacci: {
-                    text: 'Вычислить N-ое число Фибоначчи используя быструю матричную экспоненциацию',
-                    operation: 'fibonacci',
-                    size: 1000
+                check_prime: {
+                    text: 'Проверить является ли число N простым, используя быстрый алгоритм',
+                    operation: 'check_if_prime',
+                    size: 1000000
                 },
                 sort: {
                     text: 'Отсортировать массив из N элементов максимально быстро',
-                    operation: 'sort',
+                    operation: 'sort_array',
                     size: 100000
                 },
-                matrix: {
-                    text: 'Умножить две матрицы размером N×N с кэш-оптимизацией',
-                    operation: 'matrix_multiply',
-                    size: 512
+                gcd: {
+                    text: 'Найти наибольший общий делитель двух чисел эффективно',
+                    operation: 'gcd',
+                    size: 1000000
                 }
             };
 
@@ -562,12 +561,16 @@
             // Build specification
             const spec = {
                 intent: intent,
+                task: operationType,  // This will be used as the task identifier
                 operationType: operationType,
                 inputSize: dataSize,
                 constraints: {
                     maxSize: 10000,
                     maxTime: 1000,
-                    priority: priority
+                    priority: priority,
+                    performance: priority === 'speed' ? 0.9 : 0.5,
+                    codeSize: priority === 'size' ? 0.9 : 0.5,
+                    energy: priority === 'energy' ? 0.9 : 0.5
                 },
                 examples: [
                     { input: [10], expectedOutput: operationType === 'find_primes' ? [2,3,5,7] : [55] }
@@ -581,20 +584,20 @@
             await sleep(500);
 
             const parsedIntent = codeGenSystem.intentParser.parse(spec);
-            updateTimeline(1, 'completed', `✓ Обработано: ${parsedIntent.operationType}`);
+            updateTimeline(1, 'completed', `✓ Обработано: ${parsedIntent.task}`);
 
             // Step 2: Select algorithm
             updateTimeline(2, 'active', 'Поиск оптимального алгоритма...');
             await sleep(500);
 
-            const algorithm = codeGenSystem.algorithmSelector.selectBest(parsedIntent);
+            const algorithm = codeGenSystem.algorithmSelector.selectBestAlgorithm(parsedIntent, spec.constraints);
             updateTimeline(2, 'completed',
                 `✓ Выбран: ${algorithm.name}\n` +
                 `  Сложность: ${algorithm.complexity}\n` +
                 `  Ожидаемое ускорение: ${algorithm.speedup.toFixed(1)}x`
             );
-            document.getElementById('statAlgorithms').textContent =
-                codeGenSystem.algorithmSelector.algorithms.get(operationType).length;
+            const algorithms = codeGenSystem.algorithmSelector.knownAlgorithms.get(parsedIntent.task);
+            document.getElementById('statAlgorithms').textContent = algorithms ? algorithms.length : 0;
 
             // Step 3: Generate code
             updateTimeline(3, 'active', 'Генерация WASM кода...');
@@ -613,7 +616,7 @@
             updateTimeline(4, 'active', 'Формальная верификация...');
             await sleep(1000);
 
-            const verification = codeGenSystem.formalVerifier.verify(generated, spec);
+            const verification = codeGenSystem.verifier.verify(generated, spec);
             updateTimeline(4, 'completed',
                 `✓ Верифицировано: ${verification.verified ? 'PASSED' : 'FAILED'}\n` +
                 `  Уверенность: ${(verification.confidence * 100).toFixed(1)}%\n` +
@@ -629,7 +632,7 @@
             updateTimeline(5, 'active', 'Поиск Pareto-оптимальных вариантов...');
             await sleep(1200);
 
-            const variants = codeGenSystem.multiObjectiveOptimizer.optimize(
+            const variants = codeGenSystem.optimizer.optimize(
                 algorithm,
                 parsedIntent,
                 spec.constraints
