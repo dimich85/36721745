@@ -151,7 +151,7 @@ class IntentParser {
      */
     parseStructured(spec) {
         return {
-            task: spec.intent || spec.task || 'unknown',
+            task: spec.task || spec.operationType || this.extractTask(spec.intent || '') || 'unknown',
             inputs: spec.inputs || [],
             outputs: spec.outputs || [],
             constraints: spec.constraints || {
@@ -164,7 +164,8 @@ class IntentParser {
                 preconditions: [],
                 postconditions: [],
                 invariants: []
-            }
+            },
+            intentText: spec.intent || ''
         };
     }
 

@@ -591,6 +591,13 @@
             await sleep(500);
 
             const algorithm = codeGenSystem.algorithmSelector.selectBestAlgorithm(parsedIntent, spec.constraints);
+
+            if (!algorithm) {
+                updateTimeline(2, 'completed', `✗ Алгоритм не найден для задачи: ${parsedIntent.task}`);
+                alert(`Ошибка: Алгоритм для задачи "${parsedIntent.task}" не найден в базе знаний.\n\nДоступные задачи:\n- find_primes\n- check_if_prime\n- sort_array\n- binary_search\n- gcd`);
+                return;
+            }
+
             updateTimeline(2, 'completed',
                 `✓ Выбран: ${algorithm.name}\n` +
                 `  Сложность: ${algorithm.complexity}\n` +

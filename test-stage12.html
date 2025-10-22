@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Stage 12</title>
+</head>
+<body>
+    <h1>Stage 12 Test</h1>
+    <div id="output"></div>
+
+    <script src="stage12-code-generation.js"></script>
+    <script>
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            output.innerHTML += msg + '<br>';
+            console.log(msg);
+        }
+
+        async function test() {
+            log('=== Testing Stage 12 Code Generation ===');
+
+            try {
+                // Test 1: Create system
+                log('\n1. Creating CodeGenerationSystem...');
+                const system = new CodeGenerationSystem();
+                log('✓ System created');
+
+                // Test 2: Parse intent with task field
+                log('\n2. Testing IntentParser with task field...');
+                const spec = {
+                    task: 'find_primes',
+                    intent: 'Найти все простые числа до N',
+                    inputSize: 10000,
+                    constraints: {
+                        performance: 0.9,
+                        codeSize: 0.5,
+                        energy: 0.5
+                    }
+                };
+
+                const parsedIntent = system.intentParser.parse(spec);
+                log(`✓ Parsed task: ${parsedIntent.task}`);
+
+                if (parsedIntent.task !== 'find_primes') {
+                    log(`✗ ERROR: Expected task='find_primes', got '${parsedIntent.task}'`);
+                    return;
+                }
+
+                // Test 3: Select algorithm
+                log('\n3. Testing AlgorithmSelector...');
+                const algorithm = system.algorithmSelector.selectBestAlgorithm(parsedIntent, spec.constraints);
+
+                if (!algorithm) {
+                    log('✗ ERROR: Algorithm not found!');
+                    return;
+                }
+
+                log(`✓ Selected algorithm: ${algorithm.name}`);
+                log(`  Complexity: ${algorithm.complexity}`);
+                log(`  Speedup: ${algorithm.speedup}x`);
+
+                // Test 4: Generate code
+                log('\n4. Testing CodeGenerator...');
+                const generated = system.codeGenerator.generate(algorithm, parsedIntent, spec.constraints);
+
+                if (!generated || !generated.wat) {
+                    log('✗ ERROR: Code generation failed!');
+                    return;
+                }
+
+                log(`✓ Generated ${generated.wat.split('\n').length} lines of WAT code`);
+                log(`  Optimizations: ${generated.optimizations.join(', ')}`);
+
+                // Test 5: Verify
+                log('\n5. Testing FormalVerifier...');
+                const verification = system.verifier.verify(generated, spec);
+
+                log(`✓ Verification: ${verification.verified ? 'PASSED' : 'FAILED'}`);
+                log(`  Confidence: ${(verification.confidence * 100).toFixed(1)}%`);
+                log(`  Tests: ${verification.passedTests}/${verification.totalTests}`);
+
+                // Test 6: Optimize
+                log('\n6. Testing MultiObjectiveOptimizer...');
+                const variants = system.optimizer.optimize(algorithm, parsedIntent, spec.constraints);
+
+                log(`✓ Found ${variants.paretoFront.length} Pareto-optimal variants`);
+                log(`  Best speedup: ${variants.bestVariant.objectives.speed.toFixed(1)}x`);
+
+                log('\n=== All tests PASSED! ✓ ===');
+
+            } catch (error) {
+                log(`\n✗ ERROR: ${error.message}`);
+                log(`Stack: ${error.stack}`);
+            }
+        }
+
+        // Run test on load
+        window.addEventListener('load', test);
+    </script>
+</body>
+</html>
