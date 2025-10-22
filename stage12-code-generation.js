@@ -692,42 +692,76 @@ class FormalVerifier {
     verify(generatedCode, specification) {
         console.log('🔍 Starting formal verification...');
 
-        const results = {
-            verified: true,
-            checks: [],
-            confidence: 0.0
-        };
-
         // 1. Example-based testing
         const exampleResults = this.testExamples(generatedCode, specification);
-        results.checks.push(exampleResults);
-        if (!exampleResults.passed) {
-            results.verified = false;
-            return results;
-        }
 
         // 2. Property-based testing
         const propertyResults = this.propertyBasedTesting(generatedCode, specification);
-        results.checks.push(propertyResults);
 
         // 3. Boundary testing
         const boundaryResults = this.boundaryTesting(generatedCode, specification);
-        results.checks.push(boundaryResults);
+
+        // Calculate totals
+        const totalTests = exampleResults.testsRun + propertyResults.testsRun + boundaryResults.testsRun;
+        const passedTests =
+            (exampleResults.passed ? exampleResults.testsRun : 0) +
+            (propertyResults.passed ? propertyResults.testsRun : 0) +
+            (boundaryResults.passed ? boundaryResults.testsRun : 0);
 
         // Вычисляем confidence
-        const allPassed = results.checks.every(check => check.passed);
-        results.verified = allPassed;
-        results.confidence = allPassed ? 0.95 : 0.0;
+        const allPassed = exampleResults.passed && propertyResults.passed && boundaryResults.passed;
+        const confidence = allPassed ? 0.95 : (passedTests / totalTests) * 0.8;
+
+        const results = {
+            verified: allPassed,
+            confidence: confidence,
+            passedTests: passedTests,
+            totalTests: totalTests,
+            details: {
+                exampleTests: this.formatExampleTests(exampleResults, specification),
+                propertyTests: {
+                    passed: propertyResults.passed ? propertyResults.testsRun : Math.floor(propertyResults.testsRun * propertyResults.successRate),
+                    total: propertyResults.testsRun
+                },
+                boundaryTests: {
+                    passed: boundaryResults.passed ? boundaryResults.testsRun : Math.floor(boundaryResults.testsRun * boundaryResults.successRate),
+                    total: boundaryResults.testsRun
+                }
+            }
+        };
 
         if (results.verified) {
             console.log('✅ Verification succeeded!');
             console.log(`   Confidence: ${(results.confidence * 100).toFixed(1)}%`);
-            console.log(`   Tests run: ${results.checks.reduce((sum, c) => sum + c.testsRun, 0)}`);
+            console.log(`   Tests run: ${totalTests}`);
         } else {
             console.log('❌ Verification failed!');
+            console.log(`   Passed: ${passedTests}/${totalTests}`);
         }
 
         return results;
+    }
+
+    /**
+     * Форматирование результатов example tests для отображения
+     */
+    formatExampleTests(exampleResults, specification) {
+        const examples = specification.examples || [];
+        const formatted = [];
+
+        for (const example of examples) {
+            const mockOutput = this.mockExecute({}, example.input);
+            const passed = this.deepEqual(mockOutput, example.expectedOutput || example.output);
+
+            formatted.push({
+                input: example.input,
+                output: mockOutput,
+                expected: example.expectedOutput || example.output,
+                passed: passed
+            });
+        }
+
+        return formatted;
     }
 
     /**
