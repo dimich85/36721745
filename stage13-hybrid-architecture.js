@@ -290,9 +290,18 @@ class BufferPool {
 
     getStats() {
         return {
-            ...this.stats,
-            reuseRate: this.stats.reuses / (this.stats.allocations + this.stats.reuses)
+            buffersCreated: this.stats.allocations,
+            buffersReused: this.stats.reuses,
+            activeBuffers: this.pools.size,
+            totalMemory: this.stats.totalMemory,
+            reuseRate: this.stats.reuses / (this.stats.allocations + this.stats.reuses),
+            cacheHitRate: this.stats.reuses / (this.stats.allocations + this.stats.reuses)
         };
+    }
+
+    // Alias for compatibility
+    getStatistics() {
+        return this.getStats();
     }
 }
 
@@ -1185,9 +1194,8 @@ class HybridRuntime {
                 const device = info.device || 'Unknown';
                 const description = info.description || 'Unknown GPU';
 
-                // Request device to get limits
-                const tempDevice = await adapter.requestDevice();
-                const limits = tempDevice.limits;
+                // Use adapter.limits directly (no need to create device!)
+                const limits = adapter.limits;
 
                 // Calculate power score based on limits
                 const score = this.calculateGPUScore(limits);
@@ -1213,10 +1221,9 @@ class HybridRuntime {
                     bestScore = score;
                     bestAdapter = adapter;
                 }
-
-                tempDevice.destroy();
             }
 
+            // Now create device ONLY for the selected adapter
             this.adapter = bestAdapter;
             this.device = await this.adapter.requestDevice();
 
@@ -1418,13 +1425,25 @@ class HybridRuntime {
     /**
      * Получить статистику
      */
-    getStats() {
+    getStatistics() {
         return {
             ...this.stats,
+            totalOperations: this.stats.totalOperations,
+            cpuOperations: this.stats.cpuOperations,
+            gpuOperations: this.stats.gpuOperations,
+            averageConfidence: this.scheduler.history.length > 0
+                ? this.scheduler.history.reduce((sum, h) => sum + (h.confidence || 0), 0) / this.scheduler.history.length
+                : 0,
+            averageSpeedup: this.stats.totalSpeedup / Math.max(this.stats.totalOperations, 1),
             cpuStats: this.cpuExecutor.getStats(),
             gpuStats: this.gpuAvailable ? this.gpuExecutor.getStats() : null,
             schedulerHistory: this.scheduler.history.length
         };
+    }
+
+    // Alias for compatibility
+    getStats() {
+        return this.getStatistics();
     }
 }
 
