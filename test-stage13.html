@@ -94,7 +94,18 @@
 
                 gpuAvailable = initResult.gpuAvailable;
                 log(`<span class="success">✓ Runtime initialized</span>`);
+
+                // CPU Info
+                if (initResult.cpuInfo) {
+                    log(`  CPU: ${initResult.cpuInfo.vendor} ${initResult.cpuInfo.architecture} (${initResult.cpuInfo.cores} cores)`);
+                }
+
+                // GPU Info
                 log(`  GPU Available: ${gpuAvailable ? '<span class="success">Yes</span>' : '<span class="warning">No (will use CPU fallback)</span>'}`);
+                if (gpuAvailable && initResult.gpuInfo) {
+                    log(`  GPU: ${initResult.gpuInfo.vendor} ${initResult.gpuInfo.description}`);
+                    log(`  Type: ${initResult.gpuInfo.type}, Score: ${initResult.gpuInfo.score.toFixed(2)}`);
+                }
                 log('');
 
                 // Test 2: ML Scheduler

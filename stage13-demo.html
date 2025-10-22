@@ -498,15 +498,42 @@
                 const result = await hybridRuntime.initialize();
 
                 log(`✓ Инициализация завершена`, 'initOutput');
+                log('', 'initOutput');
+
+                // CPU Information
+                if (result.cpuInfo) {
+                    log(`💻 CPU: ${result.cpuInfo.vendor} ${result.cpuInfo.architecture}`, 'initOutput');
+                    log(`   Cores: ${result.cpuInfo.cores} (${result.cpuInfo.threadsAvailable} threads)`, 'initOutput');
+                    log('', 'initOutput');
+                }
+
+                // GPU Information
                 log(`  WebGPU: ${result.gpuAvailable ? '✓ Доступен' : '✗ Недоступен'}`, 'initOutput');
 
-                if (result.gpuAvailable) {
-                    log(`  Adapter: ${result.adapterInfo?.vendor || 'Unknown'}`, 'initOutput');
-                    document.getElementById('webgpuStatus').textContent = '✓ WebGPU Available';
+                if (result.gpuAvailable && result.gpuInfo) {
+                    log(`🎮 GPU: ${result.gpuInfo.vendor} ${result.gpuInfo.description}`, 'initOutput');
+                    log(`   Type: ${result.gpuInfo.type}`, 'initOutput');
+                    log(`   Power Score: ${result.gpuInfo.score.toFixed(2)}`, 'initOutput');
+                    log(`   Max Buffer: ${(result.gpuInfo.limits.maxBufferSize / (1024*1024*1024)).toFixed(2)} GB`, 'initOutput');
+                    log(`   Max Workgroup: ${result.gpuInfo.limits.maxComputeWorkgroupSizeX}`, 'initOutput');
+
+                    // Show all available GPUs if multiple
+                    if (result.availableGPUs && result.availableGPUs.length > 1) {
+                        log('', 'initOutput');
+                        log(`📋 Available GPUs (${result.availableGPUs.length}):`, 'initOutput');
+                        result.availableGPUs.forEach((gpu, idx) => {
+                            const selected = gpu.score === result.gpuInfo.score ? ' ← SELECTED' : '';
+                            log(`   ${idx + 1}. ${gpu.vendor} ${gpu.description} (score: ${gpu.score.toFixed(2)})${selected}`, 'initOutput');
+                        });
+                    }
+
+                    document.getElementById('webgpuStatus').textContent = `✓ ${result.gpuInfo.vendor} ${result.gpuInfo.description}`;
                     document.getElementById('webgpuStatus').className = 'webgpu-status available';
                 } else {
                     log(`  Fallback: CPU-only mode`, 'initOutput');
-                    log(`  Reason: ${result.error || result.message}`, 'initOutput');
+                    if (result.error) {
+                        log(`  Reason: ${result.error}`, 'initOutput');
+                    }
                     document.getElementById('webgpuStatus').textContent = '✗ WebGPU Unavailable (CPU only)';
                     document.getElementById('webgpuStatus').className = 'webgpu-status unavailable';
                 }

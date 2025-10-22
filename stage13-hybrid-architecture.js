@@ -40,6 +40,47 @@ const WGSL_SHADERS = {
     `,
 
     // Parallel reduction (sum)
+    'array.reduce': `
+        @group(0) @binding(0) var<storage, read> input: array<f32>;
+        @group(0) @binding(1) var<storage, read_write> output: array<f32>;
+        @group(0) @binding(2) var<uniform> params: vec4<f32>;
+
+        var<workgroup> shared: array<f32, 256>;
+
+        @compute @workgroup_size(256)
+        fn main(
+            @builtin(global_invocation_id) global_id: vec3<u32>,
+            @builtin(local_invocation_id) local_id: vec3<u32>,
+            @builtin(workgroup_id) workgroup_id: vec3<u32>
+        ) {
+            let tid = local_id.x;
+            let gid = global_id.x;
+            let size = u32(params.x);
+
+            // Load data into shared memory
+            if (gid < size) {
+                shared[tid] = input[gid];
+            } else {
+                shared[tid] = 0.0;
+            }
+
+            workgroupBarrier();
+
+            // Parallel reduction in shared memory
+            for (var s: u32 = 128u; s > 0u; s = s >> 1u) {
+                if (tid < s) {
+                    shared[tid] = shared[tid] + shared[tid + s];
+                }
+                workgroupBarrier();
+            }
+
+            // Write result for this workgroup
+            if (tid == 0u) {
+                output[workgroup_id.x] = shared[0];
+            }
+        }
+    `,
+
     'array.reduce.sum': `
         @group(0) @binding(0) var<storage, read> input: array<f32>;
         @group(0) @binding(1) var<storage, read_write> output: array<f32>;
@@ -618,6 +659,7 @@ class GPUExecutor {
                     result = await this.executeArrayMap(data, operation.params);
                     break;
 
+                case 'array.reduce':
                 case 'array.reduce.sum':
                     result = await this.executeArrayReduce(data);
                     break;
@@ -638,20 +680,25 @@ class GPUExecutor {
                     throw new Error(`Unknown GPU operation: ${operation.type}`);
             }
 
-            const duration = performance.now() - startTime;
+            const executionTime = performance.now() - startTime;
 
             // Update stats
             this.stats.totalExecutions++;
-            this.stats.totalTime += duration;
+            this.stats.totalTime += executionTime;
 
             const opStats = this.stats.operations.get(operation.type) || { count: 0, time: 0 };
             opStats.count++;
-            opStats.time += duration;
+            opStats.time += executionTime;
             this.stats.operations.set(operation.type, opStats);
 
-            console.log(`[GPUExecutor] Completed in ${duration.toFixed(2)}ms`);
+            console.log(`[GPUExecutor] Completed in ${executionTime.toFixed(2)}ms`);
 
-            return result;
+            // Return object with result and metadata
+            return {
+                result: result,
+                executionTime: executionTime,
+                target: 'GPU'
+            };
 
         } catch (error) {
             console.error('[GPUExecutor] Error:', error);
@@ -741,8 +788,8 @@ class GPUExecutor {
         const size = inputArray.length;
         const workgroups = Math.ceil(size / 256);
 
-        // Get pipeline
-        const pipeline = await this.pipelineCache.get('array.reduce.sum', WGSL_SHADERS['array.reduce.sum']);
+        // Get pipeline - use 'array.reduce' key
+        const pipeline = await this.pipelineCache.get('array.reduce', WGSL_SHADERS['array.reduce']);
 
         // Create buffers
         const inputBuffer = this.bufferPool.acquire(
@@ -959,11 +1006,12 @@ class CPUExecutor {
         switch (operation.type) {
             case 'array.map':
                 const factor = operation.params?.factor || 2.0;
-                result = data.map(x => x * factor);
+                result = Array.from(data).map(x => x * factor);
                 break;
 
+            case 'array.reduce':
             case 'array.reduce.sum':
-                result = data.reduce((sum, x) => sum + x, 0);
+                result = Array.from(data).reduce((sum, x) => sum + x, 0);
                 break;
 
             case 'matrix.multiply':
@@ -978,14 +1026,19 @@ class CPUExecutor {
                 throw new Error(`Unknown CPU operation: ${operation.type}`);
         }
 
-        const duration = performance.now() - startTime;
+        const executionTime = performance.now() - startTime;
 
         this.stats.totalExecutions++;
-        this.stats.totalTime += duration;
+        this.stats.totalTime += executionTime;
 
-        console.log(`[CPUExecutor] Completed in ${duration.toFixed(2)}ms`);
+        console.log(`[CPUExecutor] Completed in ${executionTime.toFixed(2)}ms`);
 
-        return result;
+        // Return object with result and metadata
+        return {
+            result: result,
+            executionTime: executionTime,
+            target: 'CPU'
+        };
     }
 
     matrixMultiplyCPU(a, b, M, N, K) {
@@ -1068,6 +1121,18 @@ class HybridRuntime {
     async initialize() {
         console.log('[HybridRuntime] Initializing...');
 
+        // Detect CPU information
+        const cpuCores = navigator.hardwareConcurrency || 4;
+        const cpuInfo = {
+            cores: cpuCores,
+            threadsAvailable: cpuCores,
+            // Try to detect CPU vendor from user agent
+            vendor: this.detectCPUVendor(),
+            architecture: this.detectCPUArchitecture()
+        };
+
+        console.log(`[HybridRuntime] CPU Detected: ${cpuInfo.vendor} ${cpuInfo.architecture} (${cpuInfo.cores} cores)`);
+
         // Check WebGPU support
         if (!('gpu' in navigator)) {
             console.warn('[HybridRuntime] WebGPU not available, falling back to CPU-only mode');
@@ -1076,18 +1141,88 @@ class HybridRuntime {
             return {
                 success: true,
                 gpuAvailable: false,
+                cpuInfo: cpuInfo,
                 message: 'CPU-only mode'
             };
         }
 
         try {
-            this.adapter = await navigator.gpu.requestAdapter();
+            // Request ALL available adapters
+            console.log('[HybridRuntime] Detecting available GPUs...');
 
-            if (!this.adapter) {
-                throw new Error('No GPU adapter found');
+            // Request high-performance adapter first
+            const highPerfAdapter = await navigator.gpu.requestAdapter({
+                powerPreference: 'high-performance'
+            });
+
+            // Request low-power adapter for comparison
+            const lowPowerAdapter = await navigator.gpu.requestAdapter({
+                powerPreference: 'low-power'
+            });
+
+            // Collect all unique adapters
+            const adapters = [];
+            if (highPerfAdapter) adapters.push({ adapter: highPerfAdapter, type: 'high-performance' });
+            if (lowPowerAdapter && lowPowerAdapter !== highPerfAdapter) {
+                adapters.push({ adapter: lowPowerAdapter, type: 'low-power' });
             }
 
+            if (adapters.length === 0) {
+                throw new Error('No GPU adapters found');
+            }
+
+            console.log(`[HybridRuntime] Found ${adapters.length} GPU adapter(s)`);
+
+            // Score and select the most powerful adapter
+            let bestAdapter = null;
+            let bestScore = -1;
+            const adapterDetails = [];
+
+            for (const {adapter, type} of adapters) {
+                const info = adapter.info || {};
+                const vendor = info.vendor || 'Unknown';
+                const architecture = info.architecture || 'Unknown';
+                const device = info.device || 'Unknown';
+                const description = info.description || 'Unknown GPU';
+
+                // Request device to get limits
+                const tempDevice = await adapter.requestDevice();
+                const limits = tempDevice.limits;
+
+                // Calculate power score based on limits
+                const score = this.calculateGPUScore(limits);
+
+                adapterDetails.push({
+                    vendor,
+                    architecture,
+                    device,
+                    description,
+                    type,
+                    score,
+                    limits: {
+                        maxBufferSize: limits.maxBufferSize,
+                        maxComputeWorkgroupSizeX: limits.maxComputeWorkgroupSizeX,
+                        maxComputeInvocationsPerWorkgroup: limits.maxComputeInvocationsPerWorkgroup,
+                        maxStorageBufferBindingSize: limits.maxStorageBufferBindingSize
+                    }
+                });
+
+                console.log(`[HybridRuntime]   ${vendor} ${description} (${type}): score=${score}`);
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestAdapter = adapter;
+                }
+
+                tempDevice.destroy();
+            }
+
+            this.adapter = bestAdapter;
             this.device = await this.adapter.requestDevice();
+
+            const selectedInfo = adapterDetails.find(d => d.score === bestScore);
+
+            console.log(`[HybridRuntime] Selected: ${selectedInfo.vendor} ${selectedInfo.description}`);
 
             this.gpuExecutor = new GPUExecutor(this.device, this.adapter);
 
@@ -1102,10 +1237,9 @@ class HybridRuntime {
             return {
                 success: true,
                 gpuAvailable: true,
-                adapterInfo: {
-                    vendor: this.adapter.info?.vendor || 'Unknown',
-                    architecture: this.adapter.info?.architecture || 'Unknown'
-                }
+                cpuInfo: cpuInfo,
+                gpuInfo: selectedInfo,
+                availableGPUs: adapterDetails
             };
 
         } catch (error) {
@@ -1116,10 +1250,65 @@ class HybridRuntime {
             return {
                 success: true,
                 gpuAvailable: false,
+                cpuInfo: cpuInfo,
                 error: error.message,
                 message: 'Falling back to CPU-only mode'
             };
         }
+    }
+
+    /**
+     * Calculate GPU power score based on limits
+     */
+    calculateGPUScore(limits) {
+        // Weight different capabilities
+        const bufferScore = limits.maxBufferSize / (1024 * 1024 * 1024); // GB
+        const workgroupScore = limits.maxComputeWorkgroupSizeX / 256;
+        const invocationScore = limits.maxComputeInvocationsPerWorkgroup / 256;
+
+        return bufferScore * 0.4 + workgroupScore * 0.3 + invocationScore * 0.3;
+    }
+
+    /**
+     * Detect CPU vendor from user agent
+     */
+    detectCPUVendor() {
+        const ua = navigator.userAgent.toLowerCase();
+
+        // Check for Apple Silicon
+        if (ua.includes('mac') && (ua.includes('arm') || navigator.platform === 'MacIntel')) {
+            // M1/M2/M3 chips
+            if (ua.includes('m1') || ua.includes('m2') || ua.includes('m3')) {
+                return 'Apple Silicon';
+            }
+            return 'Apple';
+        }
+
+        // AMD Ryzen detection
+        if (ua.includes('amd') || ua.includes('ryzen')) {
+            return 'AMD';
+        }
+
+        // Intel detection (most common default)
+        return 'Intel/AMD';
+    }
+
+    /**
+     * Detect CPU architecture
+     */
+    detectCPUArchitecture() {
+        const platform = navigator.platform.toLowerCase();
+        const ua = navigator.userAgent.toLowerCase();
+
+        if (ua.includes('arm') || platform.includes('arm')) {
+            return 'ARM64';
+        }
+
+        if (platform.includes('win') || platform.includes('linux') || platform.includes('mac')) {
+            return 'x86-64';
+        }
+
+        return 'Unknown';
     }
 
     /**
@@ -1158,7 +1347,7 @@ class HybridRuntime {
         this.stats.totalOperations++;
 
         // Decide CPU or GPU
-        let target, cpuTime, gpuTime;
+        let target;
 
         if (!this.gpuAvailable) {
             target = 'CPU';
@@ -1169,30 +1358,28 @@ class HybridRuntime {
 
         // Execute
         const startTime = performance.now();
-        let result;
+        let executorResult;
 
         if (target === 'GPU' && this.gpuAvailable) {
-            result = await this.gpuExecutor.execute(operation, data);
-            gpuTime = performance.now() - startTime;
+            executorResult = await this.gpuExecutor.execute(operation, data);
             this.stats.gpuOperations++;
 
-            this.scheduler.updateLoad('GPU', gpuTime);
-            this.scheduler.recordExecution(operation, 'GPU', gpuTime);
+            this.scheduler.updateLoad('GPU', executorResult.executionTime);
+            this.scheduler.recordExecution(operation, 'GPU', executorResult.executionTime);
         } else {
-            result = await this.cpuExecutor.execute(operation, data);
-            cpuTime = performance.now() - startTime;
+            executorResult = await this.cpuExecutor.execute(operation, data);
             this.stats.cpuOperations++;
 
-            this.scheduler.updateLoad('CPU', cpuTime);
-            this.scheduler.recordExecution(operation, 'CPU', cpuTime);
+            this.scheduler.updateLoad('CPU', executorResult.executionTime);
+            this.scheduler.recordExecution(operation, 'CPU', executorResult.executionTime);
         }
 
-        const executionTime = performance.now() - startTime;
+        const totalTime = performance.now() - startTime;
 
         return {
-            result: result,
-            target: target,
-            executionTime: executionTime
+            result: executorResult.result,
+            target: executorResult.target,
+            executionTime: totalTime
         };
     }
 
@@ -1203,9 +1390,8 @@ class HybridRuntime {
         console.log(`[HybridRuntime] Benchmarking ${operation.type}...`);
 
         // CPU
-        const cpuStart = performance.now();
         const cpuResult = await this.cpuExecutor.execute(operation, data);
-        const cpuTime = performance.now() - cpuStart;
+        const cpuTime = cpuResult.executionTime;
 
         // GPU (if available)
         let gpuTime = null;
@@ -1213,9 +1399,8 @@ class HybridRuntime {
         let speedup = null;
 
         if (this.gpuAvailable) {
-            const gpuStart = performance.now();
             gpuResult = await this.gpuExecutor.execute(operation, data);
-            gpuTime = performance.now() - gpuStart;
+            gpuTime = gpuResult.executionTime;
 
             speedup = cpuTime / gpuTime;
         }
