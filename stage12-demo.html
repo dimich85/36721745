@@ -611,9 +611,12 @@
             await sleep(800);
 
             const generated = codeGenSystem.codeGenerator.generate(algorithm, parsedIntent, spec.constraints);
+
+            const optimizationsList = generated.metadata?.optimizations?.map(o => o.type).join(', ') || 'none';
+
             updateTimeline(3, 'completed',
                 `✓ Сгенерировано ${generated.wat.split('\n').length} строк WAT кода\n` +
-                `  Применено оптимизаций: ${generated.optimizations.join(', ')}`
+                `  Применено оптимизаций: ${optimizationsList}`
             );
 
             // Display generated code
@@ -744,7 +747,7 @@
                         </div>
                         <div class="metric-row">
                             <span class="metric-label">Оптимизации:</span>
-                            <span class="metric-value">${variant.optimizations.length}</span>
+                            <span class="metric-value">${variant.optimizations?.length || 0}</span>
                         </div>
                     </div>
                 `;

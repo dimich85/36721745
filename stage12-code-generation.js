@@ -878,10 +878,15 @@ class FormalVerifier {
 
 class MultiObjectiveOptimizer {
     /**
-     * Поиск Pareto-оптимальных решений
+     * Главный метод: генерация и оптимизация вариантов
      */
-    optimize(variants, constraints) {
-        console.log(`🎯 Optimizing ${variants.length} variants...`);
+    optimize(algorithm, intent, constraints) {
+        console.log(`🎯 Multi-objective optimization for ${algorithm.name}...`);
+
+        // Генерируем варианты с разными комбинациями оптимизаций
+        const variants = this.generateVariants(algorithm, constraints);
+
+        console.log(`   Generated ${variants.length} variants`);
 
         // Вычисляем Pareto front
         const paretoFront = this.computeParetoFront(variants);
@@ -889,14 +894,94 @@ class MultiObjectiveOptimizer {
         console.log(`   Pareto front: ${paretoFront.length} solutions`);
 
         // Выбираем лучшее согласно constraints
-        const best = this.selectBest(paretoFront, constraints);
+        const best = this.selectBestVariant(paretoFront, constraints);
 
         console.log(`✓ Selected best variant:`);
-        console.log(`   Performance: ${best.performance.toFixed(2)}x`);
-        console.log(`   Code size: ${best.codeSize} bytes`);
-        console.log(`   Energy: ${best.energy.toFixed(2)} units`);
+        console.log(`   Speed: ${best.objectives.speed.toFixed(2)}x`);
+        console.log(`   Size: ${best.objectives.size} bytes`);
+        console.log(`   Energy: ${best.objectives.energy.toFixed(2)} mJ`);
 
-        return best;
+        return {
+            paretoFront: paretoFront,
+            bestVariant: best,
+            allVariants: variants
+        };
+    }
+
+    /**
+     * Генерация вариантов кода
+     */
+    generateVariants(algorithm, constraints) {
+        const variants = [];
+
+        // Базовый вариант (без оптимизаций)
+        variants.push(this.createVariant(algorithm, [], 1.0));
+
+        // Вариант с SIMD
+        if (algorithm.vectorizable) {
+            variants.push(this.createVariant(algorithm, ['simd'], 4.0));
+        }
+
+        // Вариант с loop unrolling
+        variants.push(this.createVariant(algorithm, ['loop_unroll'], 1.3));
+
+        // Вариант с inlining
+        variants.push(this.createVariant(algorithm, ['inline'], 1.15));
+
+        // Комбинированные варианты
+        if (algorithm.vectorizable) {
+            variants.push(this.createVariant(algorithm, ['simd', 'loop_unroll'], 5.2));
+            variants.push(this.createVariant(algorithm, ['simd', 'inline'], 4.5));
+        }
+
+        variants.push(this.createVariant(algorithm, ['loop_unroll', 'inline'], 1.5));
+
+        // Максимум оптимизаций
+        if (algorithm.vectorizable && constraints.performance > 0.7) {
+            variants.push(this.createVariant(
+                algorithm,
+                ['simd', 'loop_unroll', 'inline'],
+                6.0
+            ));
+        }
+
+        return variants;
+    }
+
+    /**
+     * Создание одного варианта
+     */
+    createVariant(algorithm, optimizations, speedupMultiplier) {
+        const baseSpeed = algorithm.speedup || 1.0;
+        const baseSize = algorithm.codeSize || 100;
+
+        // Вычисляем размер кода с учетом оптимизаций
+        let sizeMultiplier = 1.0;
+        for (const opt of optimizations) {
+            if (opt === 'simd') sizeMultiplier *= 1.5;
+            if (opt === 'loop_unroll') sizeMultiplier *= 1.4;
+            if (opt === 'inline') sizeMultiplier *= 1.3;
+        }
+
+        // Вычисляем энергопотребление (обратно пропорционально скорости)
+        const energy = 100 / (baseSpeed * speedupMultiplier);
+
+        return {
+            algorithm: algorithm.name,
+            optimizations: optimizations.map(type => ({ type })),
+            objectives: {
+                speed: baseSpeed * speedupMultiplier,
+                size: Math.round(baseSize * sizeMultiplier),
+                energy: energy
+            },
+            wat: `(module (; ${algorithm.name} with ${optimizations.join(', ')} ;))`,
+            metadata: {
+                algorithm: algorithm.name,
+                optimizations: optimizations.map(type => ({ type })),
+                estimatedSpeedup: baseSpeed * speedupMultiplier,
+                codeSize: Math.round(baseSize * sizeMultiplier)
+            }
+        };
     }
 
     /**
@@ -932,14 +1017,14 @@ class MultiObjectiveOptimizer {
         // 2. A строго лучше B хотя бы по одному
 
         const betterOrEqual =
-            a.performance >= b.performance &&
-            a.codeSize <= b.codeSize &&      // Меньше = лучше
-            a.energy <= b.energy;             // Меньше = лучше
+            a.objectives.speed >= b.objectives.speed &&
+            a.objectives.size <= b.objectives.size &&      // Меньше = лучше
+            a.objectives.energy <= b.objectives.energy;     // Меньше = лучше
 
         const strictlyBetter =
-            a.performance > b.performance ||
-            a.codeSize < b.codeSize ||
-            a.energy < b.energy;
+            a.objectives.speed > b.objectives.speed ||
+            a.objectives.size < b.objectives.size ||
+            a.objectives.energy < b.objectives.energy;
 
         return betterOrEqual && strictlyBetter;
     }
@@ -947,13 +1032,13 @@ class MultiObjectiveOptimizer {
     /**
      * Выбор лучшего варианта
      */
-    selectBest(paretoFront, constraints) {
+    selectBestVariant(paretoFront, constraints) {
         // Взвешенная оценка
         const scored = paretoFront.map(variant => {
             const score =
-                variant.performance * constraints.performance * 10 +
-                (1000 / (variant.codeSize + 100)) * (1 - constraints.codeSize) * 5 +
-                (100 / (variant.energy + 10)) * (1 - constraints.energy) * 3;
+                variant.objectives.speed * constraints.performance * 10 +
+                (1000 / (variant.objectives.size + 100)) * (1 - constraints.codeSize) * 5 +
+                (100 / (variant.objectives.energy + 10)) * (1 - constraints.energy) * 3;
 
             return { variant, score };
         });
