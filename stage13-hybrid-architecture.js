@@ -39,45 +39,32 @@ const WGSL_SHADERS = {
         }
     `,
 
-    // Parallel reduction (sum)
+    // Parallel reduction (sum) - SIMPLIFIED VERSION
     'array.reduce': `
         @group(0) @binding(0) var<storage, read> input: array<f32>;
         @group(0) @binding(1) var<storage, read_write> output: array<f32>;
         @group(0) @binding(2) var<uniform> params: vec4<f32>;
 
-        var<workgroup> shared: array<f32, 256>;
-
         @compute @workgroup_size(256)
-        fn main(
-            @builtin(global_invocation_id) global_id: vec3<u32>,
-            @builtin(local_invocation_id) local_id: vec3<u32>,
-            @builtin(workgroup_id) workgroup_id: vec3<u32>
-        ) {
-            let tid = local_id.x;
+        fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let gid = global_id.x;
             let size = u32(params.x);
+            let stride = u32(params.y);
 
-            // Load data into shared memory
-            if (gid < size) {
-                shared[tid] = input[gid];
-            } else {
-                shared[tid] = 0.0;
+            if (gid >= size) {
+                return;
             }
 
-            workgroupBarrier();
+            // Simple parallel sum - each thread sums a range
+            var sum: f32 = 0.0;
+            let start = gid * stride;
+            let end = min(start + stride, size);
 
-            // Parallel reduction in shared memory
-            for (var s: u32 = 128u; s > 0u; s = s >> 1u) {
-                if (tid < s) {
-                    shared[tid] = shared[tid] + shared[tid + s];
-                }
-                workgroupBarrier();
+            for (var i = start; i < end; i = i + 1u) {
+                sum = sum + input[i];
             }
 
-            // Write result for this workgroup
-            if (tid == 0u) {
-                output[workgroup_id.x] = shared[0];
-            }
+            output[gid] = sum;
         }
     `,
 
@@ -795,7 +782,8 @@ class GPUExecutor {
      */
     async executeArrayReduce(inputArray) {
         const size = inputArray.length;
-        const workgroups = Math.ceil(size / 256);
+        const numThreads = 256;
+        const stride = Math.ceil(size / numThreads);
 
         // Get pipeline - use 'array.reduce' key
         const pipeline = await this.pipelineCache.get('array.reduce', WGSL_SHADERS['array.reduce']);
@@ -807,7 +795,7 @@ class GPUExecutor {
         );
 
         const outputBuffer = this.bufferPool.acquire(
-            workgroups * 4,
+            numThreads * 4,
             GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
         );
 
@@ -817,13 +805,13 @@ class GPUExecutor {
         );
 
         const readBuffer = this.bufferPool.acquire(
-            workgroups * 4,
+            numThreads * 4,
             GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
         );
 
-        // Upload data
+        // Upload data - params: [size, stride, 0, 0]
         this.device.queue.writeBuffer(inputBuffer, 0, new Float32Array(inputArray));
-        this.device.queue.writeBuffer(paramsBuffer, 0, new Float32Array([size, 0, 0, 0]));
+        this.device.queue.writeBuffer(paramsBuffer, 0, new Float32Array([size, stride, 0, 0]));
 
         // Create bind group
         const bindGroup = this.device.createBindGroup({
@@ -835,15 +823,15 @@ class GPUExecutor {
             ]
         });
 
-        // Execute
+        // Execute - dispatch 1 workgroup with 256 threads
         const commandEncoder = this.device.createCommandEncoder();
         const passEncoder = commandEncoder.beginComputePass();
         passEncoder.setPipeline(pipeline);
         passEncoder.setBindGroup(0, bindGroup);
-        passEncoder.dispatchWorkgroups(workgroups);
+        passEncoder.dispatchWorkgroups(1);  // 1 workgroup with 256 threads
         passEncoder.end();
 
-        commandEncoder.copyBufferToBuffer(outputBuffer, 0, readBuffer, 0, workgroups * 4);
+        commandEncoder.copyBufferToBuffer(outputBuffer, 0, readBuffer, 0, numThreads * 4);
 
         this.device.queue.submit([commandEncoder.finish()]);
 
@@ -1159,28 +1147,55 @@ class HybridRuntime {
             // Request ALL available adapters
             console.log('[HybridRuntime] Detecting available GPUs...');
 
-            // Request high-performance adapter first
+            // Request high-performance adapter (usually discrete GPU)
             const highPerfAdapter = await navigator.gpu.requestAdapter({
                 powerPreference: 'high-performance'
             });
 
-            // Request low-power adapter for comparison
+            // Request low-power adapter (usually integrated GPU)
             const lowPowerAdapter = await navigator.gpu.requestAdapter({
                 powerPreference: 'low-power'
             });
 
-            // Collect all unique adapters
+            // Request default adapter (as fallback)
+            const defaultAdapter = await navigator.gpu.requestAdapter();
+
+            // Collect all unique adapters (deduplicate by comparing info)
             const adapters = [];
-            if (highPerfAdapter) adapters.push({ adapter: highPerfAdapter, type: 'high-performance' });
-            if (lowPowerAdapter && lowPowerAdapter !== highPerfAdapter) {
-                adapters.push({ adapter: lowPowerAdapter, type: 'low-power' });
+            const seen = new Set();
+
+            for (const {adapter, type} of [
+                { adapter: highPerfAdapter, type: 'high-performance' },
+                { adapter: lowPowerAdapter, type: 'low-power' },
+                { adapter: defaultAdapter, type: 'default' }
+            ]) {
+                if (!adapter) continue;
+
+                // Create unique key from adapter info
+                const info = adapter.info || {};
+                const key = `${info.vendor || 'unknown'}-${info.device || 'unknown'}-${info.description || 'unknown'}`;
+
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    adapters.push({ adapter, type });
+                    console.log(`[HybridRuntime]   Found adapter: ${info.vendor || 'unknown'} (${type})`);
+                }
             }
 
             if (adapters.length === 0) {
                 throw new Error('No GPU adapters found');
             }
 
-            console.log(`[HybridRuntime] Found ${adapters.length} GPU adapter(s)`);
+            console.log(`[HybridRuntime] Found ${adapters.length} unique GPU adapter(s)`);
+
+            // NOTE: WebGPU API limitation - may not expose ALL GPUs
+            // - Chrome/Edge currently prioritize one GPU (usually integrated)
+            // - Discrete GPUs (Nvidia/AMD) may not be exposed via WebGPU yet
+            // - This is a browser limitation, not our code issue
+            // - Future WebGPU versions may expose multiple GPUs
+            if (adapters.length < 2) {
+                console.log('[HybridRuntime] Note: Only one GPU detected. If you have a discrete GPU (Nvidia/AMD), it may not be exposed by WebGPU yet.');
+            }
 
             // Score and select the most powerful adapter
             let bestAdapter = null;
@@ -1188,11 +1203,29 @@ class HybridRuntime {
             const adapterDetails = [];
 
             for (const {adapter, type} of adapters) {
+                // Get adapter info with proper fallbacks
                 const info = adapter.info || {};
+
+                // Try multiple fields for description
+                let description = info.description || info.device || info.name || '';
+
+                // If still empty, try to construct from vendor
+                if (!description || description === '') {
+                    const vendor = info.vendor || '';
+                    if (vendor.toLowerCase().includes('nvidia')) {
+                        description = 'NVIDIA GPU';
+                    } else if (vendor.toLowerCase().includes('amd')) {
+                        description = 'AMD GPU';
+                    } else if (vendor.toLowerCase().includes('intel')) {
+                        description = 'Intel Integrated Graphics';
+                    } else {
+                        description = `${vendor} GPU` || 'Unknown GPU';
+                    }
+                }
+
                 const vendor = info.vendor || 'Unknown';
-                const architecture = info.architecture || 'Unknown';
-                const device = info.device || 'Unknown';
-                const description = info.description || 'Unknown GPU';
+                const architecture = info.architecture || info.arch || 'Unknown';
+                const device = info.device || description;
 
                 // Use adapter.limits directly (no need to create device!)
                 const limits = adapter.limits;
@@ -1281,23 +1314,36 @@ class HybridRuntime {
      */
     detectCPUVendor() {
         const ua = navigator.userAgent.toLowerCase();
+        const platform = navigator.platform.toLowerCase();
+        const cores = navigator.hardwareConcurrency || 0;
 
         // Check for Apple Silicon
-        if (ua.includes('mac') && (ua.includes('arm') || navigator.platform === 'MacIntel')) {
-            // M1/M2/M3 chips
-            if (ua.includes('m1') || ua.includes('m2') || ua.includes('m3')) {
+        if (platform.includes('mac') || ua.includes('mac')) {
+            if (ua.includes('arm') || platform.includes('arm')) {
+                // Estimate M-series based on cores
+                if (cores >= 10) return 'Apple M2 Pro/Max';
+                if (cores >= 8) return 'Apple M1 Pro/M2';
                 return 'Apple Silicon';
             }
-            return 'Apple';
+            return 'Intel (Mac)';
         }
 
         // AMD Ryzen detection
         if (ua.includes('amd') || ua.includes('ryzen')) {
-            return 'AMD';
+            if (cores >= 16) return 'AMD Ryzen 9';
+            if (cores >= 12) return 'AMD Ryzen 7/9';
+            if (cores >= 8) return 'AMD Ryzen 5/7';
+            return 'AMD Ryzen';
         }
 
-        // Intel detection (most common default)
-        return 'Intel/AMD';
+        // Intel detection (estimate based on cores)
+        if (cores >= 16) return 'Intel Core i7/i9 (12th+ gen)';
+        if (cores >= 12) return 'Intel Core i5/i7 (12th gen)';
+        if (cores >= 8) return 'Intel Core i7 (11th gen)';
+        if (cores >= 6) return 'Intel Core i5/i7';
+        if (cores >= 4) return 'Intel Core i5';
+
+        return 'Intel/AMD CPU';
     }
 
     /**
