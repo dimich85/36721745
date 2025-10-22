@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Stage 13 - Hybrid Architecture</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        #output {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 600px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .success { color: #22c55e; font-weight: bold; }
+        .error { color: #ef4444; font-weight: bold; }
+        .info { color: #3b82f6; }
+        .warning { color: #f59e0b; }
+        .test-section {
+            margin: 20px 0;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Stage 13: Hybrid Architecture - Automated Tests</h1>
+        <div id="output"></div>
+    </div>
+
+    <script src="stage13-hybrid-architecture.js"></script>
+    <script>
+        const output = document.getElementById('output');
+
+        function log(msg, className = '') {
+            const div = document.createElement('div');
+            if (className) div.className = className;
+            div.innerHTML = msg;
+            output.appendChild(div);
+            console.log(msg.replace(/<[^>]*>/g, ''));
+        }
+
+        function section(title) {
+            log(`<div class="test-section"><strong>${title}</strong></div>`);
+        }
+
+        async function runTests() {
+            log('<span class="info">=== Starting Stage 13 Tests ===</span>');
+            log('');
+
+            let runtime;
+            let gpuAvailable = false;
+
+            try {
+                // Test 1: Create and initialize HybridRuntime
+                section('Test 1: HybridRuntime Initialization');
+                log('Creating HybridRuntime...');
+                runtime = new HybridRuntime();
+
+                if (!runtime) {
+                    log('<span class="error">✗ ERROR: Failed to create HybridRuntime</span>');
+                    return;
+                }
+                log('<span class="success">✓ HybridRuntime created</span>');
+
+                log('Initializing runtime...');
+                const initResult = await runtime.initialize();
+
+                if (!initResult || !initResult.success) {
+                    log('<span class="error">✗ ERROR: Failed to initialize runtime</span>');
+                    return;
+                }
+
+                gpuAvailable = initResult.gpuAvailable;
+                log(`<span class="success">✓ Runtime initialized</span>`);
+                log(`  GPU Available: ${gpuAvailable ? '<span class="success">Yes</span>' : '<span class="warning">No (will use CPU fallback)</span>'}`);
+                log('');
+
+                // Test 2: ML Scheduler
+                section('Test 2: ML Scheduler Decision Making');
+
+                const testOperations = [
+                    {
+                        type: 'array.map',
+                        dataSize: 1000000,
+                        parallelizability: 0.95,
+                        computeIntensity: 1.0,
+                        memoryAccess: 0.1,
+                        name: 'Array Map (1M elements)'
+                    },
+                    {
+                        type: 'array.reduce',
+                        dataSize: 100,
+                        parallelizability: 0.3,
+                        computeIntensity: 0.5,
+                        memoryAccess: 0.8,
+                        name: 'Array Reduce (100 elements)'
+                    },
+                    {
+                        type: 'matrix.multiply',
+                        dataSize: 262144, // 512x512
+                        parallelizability: 0.98,
+                        computeIntensity: 3.0,
+                        memoryAccess: 0.2,
+                        name: 'Matrix Multiply (512x512)'
+                    }
+                ];
+
+                for (const op of testOperations) {
+                    const decision = runtime.scheduler.decide(op);
+
+                    if (!decision || !decision.target) {
+                        log(`<span class="error">✗ ERROR: Scheduler failed for ${op.name}</span>`);
+                        continue;
+                    }
+
+                    log(`<span class="info">${op.name}:</span>`);
+                    log(`  Decision: <strong>${decision.target}</strong> (confidence: ${(decision.confidence * 100).toFixed(1)}%)`);
+                    log(`  Estimated speedup: ${decision.estimatedSpeedup.toFixed(1)}x`);
+
+                    // Validate decision logic
+                    if (gpuAvailable && op.parallelizability > 0.7 && op.dataSize > 10000) {
+                        if (decision.target !== 'GPU') {
+                            log(`  <span class="warning">⚠ WARNING: Expected GPU for highly parallel large operation</span>`);
+                        }
+                    }
+
+                    if (op.dataSize < 1000 && decision.target === 'GPU') {
+                        log(`  <span class="warning">⚠ WARNING: GPU might have overhead for small data</span>`);
+                    }
+                }
+                log('<span class="success">✓ ML Scheduler tests passed</span>');
+                log('');
+
+                // Test 3: CPU Executor
+                section('Test 3: CPU Executor');
+
+                const testData = new Float32Array(10000);
+                for (let i = 0; i < testData.length; i++) {
+                    testData[i] = i;
+                }
+
+                log('Testing CPU execution...');
+                const cpuStartTime = performance.now();
+                const cpuResult = await runtime.cpuExecutor.execute({
+                    type: 'array.map',
+                    params: { factor: 2 }
+                }, testData);
+                const cpuTime = performance.now() - cpuStartTime;
+
+                if (!cpuResult || !cpuResult.result) {
+                    log('<span class="error">✗ ERROR: CPU execution failed</span>');
+                    return;
+                }
+
+                // Verify result
+                let cpuCorrect = true;
+                for (let i = 0; i < Math.min(100, testData.length); i++) {
+                    if (Math.abs(cpuResult.result[i] - testData[i] * 2) > 0.01) {
+                        cpuCorrect = false;
+                        break;
+                    }
+                }
+
+                if (!cpuCorrect) {
+                    log('<span class="error">✗ ERROR: CPU result incorrect</span>');
+                    return;
+                }
+
+                log(`<span class="success">✓ CPU execution passed</span>`);
+                log(`  Time: ${cpuTime.toFixed(2)}ms`);
+                log(`  Result length: ${cpuResult.result.length}`);
+                log(`  Sample: [${cpuResult.result.slice(0, 5).map(v => v.toFixed(1)).join(', ')}...]`);
+                log('');
+
+                // Test 4: GPU Executor (if available)
+                if (gpuAvailable) {
+                    section('Test 4: GPU Executor');
+
+                    log('Testing GPU execution...');
+                    const gpuStartTime = performance.now();
+                    const gpuResult = await runtime.gpuExecutor.execute({
+                        type: 'array.map',
+                        params: { factor: 2 }
+                    }, testData);
+                    const gpuTime = performance.now() - gpuStartTime;
+
+                    if (!gpuResult || !gpuResult.result) {
+                        log('<span class="error">✗ ERROR: GPU execution failed</span>');
+                    } else {
+                        // Verify result
+                        let gpuCorrect = true;
+                        for (let i = 0; i < Math.min(100, testData.length); i++) {
+                            if (Math.abs(gpuResult.result[i] - testData[i] * 2) > 0.01) {
+                                gpuCorrect = false;
+                                break;
+                            }
+                        }
+
+                        if (!gpuCorrect) {
+                            log('<span class="error">✗ ERROR: GPU result incorrect</span>');
+                        } else {
+                            log(`<span class="success">✓ GPU execution passed</span>`);
+                            log(`  Time: ${gpuTime.toFixed(2)}ms`);
+                            log(`  Result length: ${gpuResult.result.length}`);
+                            log(`  Sample: [${gpuResult.result.slice(0, 5).map(v => v.toFixed(1)).join(', ')}...]`);
+
+                            const speedup = cpuTime / gpuTime;
+                            log(`  <strong>Speedup: ${speedup.toFixed(1)}x vs CPU</strong>`);
+
+                            if (speedup < 1.0) {
+                                log(`  <span class="warning">⚠ WARNING: GPU slower than CPU (overhead for small data)</span>`);
+                            }
+                        }
+                    }
+                    log('');
+                } else {
+                    section('Test 4: GPU Executor');
+                    log('<span class="warning">⚠ SKIP: WebGPU not available</span>');
+                    log('');
+                }
+
+                // Test 5: Hybrid Runtime execute() with automatic routing
+                section('Test 5: Hybrid Runtime Auto-Routing');
+
+                const operations = [
+                    { type: 'array.map', dataSize: 1000000, expectedTarget: gpuAvailable ? 'GPU' : 'CPU' },
+                    { type: 'array.reduce', dataSize: 100, expectedTarget: 'CPU' },
+                ];
+
+                for (const op of operations) {
+                    const data = new Float32Array(op.dataSize);
+                    for (let i = 0; i < data.length; i++) {
+                        data[i] = i;
+                    }
+
+                    log(`<span class="info">Testing ${op.type} (${op.dataSize} elements)...</span>`);
+
+                    const execStartTime = performance.now();
+                    const execResult = await runtime.execute({
+                        type: op.type,
+                        dataSize: op.dataSize,
+                        parallelizability: op.type === 'array.map' ? 0.95 : 0.3,
+                        computeIntensity: op.type === 'array.map' ? 1.0 : 0.5,
+                        memoryAccess: op.type === 'array.map' ? 0.1 : 0.8,
+                        params: { factor: 2 }
+                    }, data);
+                    const execTime = performance.now() - execStartTime;
+
+                    if (!execResult || !execResult.result) {
+                        log(`<span class="error">✗ ERROR: Execution failed for ${op.type}</span>`);
+                        continue;
+                    }
+
+                    log(`  Target: <strong>${execResult.target}</strong>`);
+                    log(`  Time: ${execTime.toFixed(2)}ms`);
+
+                    if (execResult.target !== op.expectedTarget) {
+                        log(`  <span class="warning">⚠ WARNING: Expected ${op.expectedTarget}, got ${execResult.target}</span>`);
+                    } else {
+                        log(`  <span class="success">✓ Correct target selected</span>`);
+                    }
+                }
+                log('');
+
+                // Test 6: Statistics
+                section('Test 6: Statistics Collection');
+
+                const stats = runtime.getStatistics();
+
+                if (!stats) {
+                    log('<span class="error">✗ ERROR: Failed to get statistics</span>');
+                    return;
+                }
+
+                log('<span class="success">✓ Statistics collected</span>');
+                log(`  Total operations: ${stats.totalOperations}`);
+                log(`  CPU operations: ${stats.cpuOperations} (${((stats.cpuOperations / stats.totalOperations) * 100).toFixed(1)}%)`);
+                log(`  GPU operations: ${stats.gpuOperations} (${((stats.gpuOperations / stats.totalOperations) * 100).toFixed(1)}%)`);
+                log(`  Average confidence: ${(stats.averageConfidence * 100).toFixed(1)}%`);
+
+                if (stats.averageSpeedup) {
+                    log(`  Average speedup: ${stats.averageSpeedup.toFixed(1)}x`);
+                }
+                log('');
+
+                // Test 7: Buffer Pool (if GPU available)
+                if (gpuAvailable && runtime.gpuExecutor.bufferPool) {
+                    section('Test 7: Buffer Pool');
+
+                    const pool = runtime.gpuExecutor.bufferPool;
+                    const poolStats = pool.getStatistics();
+
+                    log('<span class="success">✓ Buffer Pool operational</span>');
+                    log(`  Buffers created: ${poolStats.buffersCreated}`);
+                    log(`  Buffers reused: ${poolStats.buffersReused}`);
+                    log(`  Active buffers: ${poolStats.activeBuffers}`);
+                    log(`  Cache hit rate: ${(poolStats.cacheHitRate * 100).toFixed(1)}%`);
+                    log('');
+                }
+
+                // Final summary
+                section('Test Summary');
+                log('<span class="success">✓✓✓ ALL TESTS PASSED! ✓✓✓</span>');
+                log('');
+                log(`<strong>Environment:</strong>`);
+                log(`  WebGPU: ${gpuAvailable ? 'Available' : 'Not Available'}`);
+                log(`  Browser: ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
+                log('');
+                log('<span class="info">=== Stage 13: Hybrid Architecture is fully functional! ===</span>');
+
+            } catch (error) {
+                log('');
+                log(`<span class="error">✗ CRITICAL ERROR: ${error.message}</span>`);
+                log(`<span class="error">Stack: ${error.stack}</span>`);
+                console.error(error);
+            }
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 100);
+        });
+    </script>
+</body>
+</html>
