@@ -849,9 +849,9 @@ class GPUExecutor {
 
         // Release buffers
         this.bufferPool.release(inputBuffer, size * 4, GPUBufferUsage.STORAGE);
-        this.bufferPool.release(outputBuffer, workgroups * 4, GPUBufferUsage.STORAGE);
+        this.bufferPool.release(outputBuffer, numThreads * 4, GPUBufferUsage.STORAGE);
         this.bufferPool.release(paramsBuffer, 16, GPUBufferUsage.UNIFORM);
-        this.bufferPool.release(readBuffer, workgroups * 4, GPUBufferUsage.MAP_READ);
+        this.bufferPool.release(readBuffer, numThreads * 4, GPUBufferUsage.MAP_READ);
 
         return finalSum;
     }
@@ -1144,21 +1144,42 @@ class HybridRuntime {
         }
 
         try {
-            // Request ALL available adapters
+            // Request ALL available adapters with aggressive detection
             console.log('[HybridRuntime] Detecting available GPUs...');
+            console.log('[HybridRuntime] Trying multiple detection strategies for discrete GPUs (Nvidia/AMD)...');
 
-            // Request high-performance adapter (usually discrete GPU)
+            // Strategy 1: Request high-performance adapter (should prefer discrete GPU)
             const highPerfAdapter = await navigator.gpu.requestAdapter({
                 powerPreference: 'high-performance'
             });
 
-            // Request low-power adapter (usually integrated GPU)
+            // Strategy 2: Request low-power adapter (usually integrated GPU)
             const lowPowerAdapter = await navigator.gpu.requestAdapter({
                 powerPreference: 'low-power'
             });
 
-            // Request default adapter (as fallback)
+            // Strategy 3: Request default adapter
             const defaultAdapter = await navigator.gpu.requestAdapter();
+
+            // Strategy 4: Request with forceFallbackAdapter false (no software rendering)
+            const noFallbackAdapter = await navigator.gpu.requestAdapter({
+                forceFallbackAdapter: false
+            });
+
+            // Log what we got from each strategy
+            console.log('[HybridRuntime] Detection results:');
+            if (highPerfAdapter) {
+                const info = highPerfAdapter.info || {};
+                console.log(`  high-performance: ${info.vendor || 'unknown'} ${info.description || info.device || 'unknown'}`);
+            }
+            if (lowPowerAdapter) {
+                const info = lowPowerAdapter.info || {};
+                console.log(`  low-power: ${info.vendor || 'unknown'} ${info.description || info.device || 'unknown'}`);
+            }
+            if (defaultAdapter) {
+                const info = defaultAdapter.info || {};
+                console.log(`  default: ${info.vendor || 'unknown'} ${info.description || info.device || 'unknown'}`);
+            }
 
             // Collect all unique adapters (deduplicate by comparing info)
             const adapters = [];
@@ -1167,7 +1188,8 @@ class HybridRuntime {
             for (const {adapter, type} of [
                 { adapter: highPerfAdapter, type: 'high-performance' },
                 { adapter: lowPowerAdapter, type: 'low-power' },
-                { adapter: defaultAdapter, type: 'default' }
+                { adapter: defaultAdapter, type: 'default' },
+                { adapter: noFallbackAdapter, type: 'no-fallback' }
             ]) {
                 if (!adapter) continue;
 
@@ -1178,7 +1200,6 @@ class HybridRuntime {
                 if (!seen.has(key)) {
                     seen.add(key);
                     adapters.push({ adapter, type });
-                    console.log(`[HybridRuntime]   Found adapter: ${info.vendor || 'unknown'} (${type})`);
                 }
             }
 
