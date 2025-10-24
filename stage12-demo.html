@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stage 12: Code Generation Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-group textarea {
+            font-family: 'Courier New', monospace;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .output:empty::before {
+            content: 'Результаты появятся здесь...';
+            color: #888;
+            font-style: italic;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .pareto-front {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .variant-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .variant-card:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .variant-card.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .variant-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .variant-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .timeline-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .timeline-dot.active {
+            background: #667eea;
+        }
+
+        .timeline-dot.completed {
+            background: #28a745;
+        }
+
+        .timeline-content {
+            flex: 1;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid #ddd;
+        }
+
+        .timeline-content.active {
+            border-left-color: #667eea;
+        }
+
+        .timeline-content.completed {
+            border-left-color: #28a745;
+        }
+
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .example-btn {
+            padding: 10px;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .example-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .keyword { color: #569cd6; }
+        .type { color: #4ec9b0; }
+        .function { color: #dcdcaa; }
+        .number { color: #b5cea8; }
+        .comment { color: #6a9955; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Stage 12: Code Generation</h1>
+            <p>Intent-Based Programming - Опишите ЧТО нужно сделать, а не КАК</p>
+        </div>
+
+        <div class="content">
+            <!-- Input Section -->
+            <div class="section">
+                <h2>1. Спецификация задачи</h2>
+
+                <div class="examples">
+                    <div class="example-btn" onclick="loadExample('primes')">Найти простые числа</div>
+                    <div class="example-btn" onclick="loadExample('check_prime')">Проверка простоты</div>
+                    <div class="example-btn" onclick="loadExample('sort')">Сортировка массива</div>
+                    <div class="example-btn" onclick="loadExample('gcd')">НОД (GCD)</div>
+                </div>
+
+                <div class="input-group">
+                    <label>Описание намерения (естественный язык):</label>
+                    <textarea id="intentText" placeholder="Например: Найти все простые числа до N используя эффективный алгоритм"></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Тип операции:</label>
+                    <select id="operationType">
+                        <option value="find_primes">Поиск простых чисел</option>
+                        <option value="check_if_prime">Проверка на простоту</option>
+                        <option value="sort_array">Сортировка массива</option>
+                        <option value="binary_search">Бинарный поиск</option>
+                        <option value="gcd">Наибольший общий делитель</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>Размер входных данных (N):</label>
+                    <input type="number" id="dataSize" value="10000" min="100" max="10000000">
+                </div>
+
+                <div class="input-group">
+                    <label>Приоритет оптимизации:</label>
+                    <select id="priority">
+                        <option value="balanced">Сбалансированный</option>
+                        <option value="speed">Максимальная скорость</option>
+                        <option value="size">Минимальный размер</option>
+                        <option value="energy">Энергоэффективность</option>
+                    </select>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-primary" onclick="generateCode()">Сгенерировать код</button>
+                    <button class="btn-secondary" onclick="clearResults()">Очистить</button>
+                </div>
+            </div>
+
+            <!-- Pipeline Progress -->
+            <div class="section">
+                <h2>2. Прогресс генерации</h2>
+                <div id="timeline" class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-dot" id="dot1">1</div>
+                        <div class="timeline-content" id="content1">
+                            <strong>Парсинг намерения</strong>
+                            <div>Ожидание...</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot" id="dot2">2</div>
+                        <div class="timeline-content" id="content2">
+                            <strong>Выбор алгоритма</strong>
+                            <div>Ожидание...</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot" id="dot3">3</div>
+                        <div class="timeline-content" id="content3">
+                            <strong>Генерация кода</strong>
+                            <div>Ожидание...</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot" id="dot4">4</div>
+                        <div class="timeline-content" id="content4">
+                            <strong>Формальная верификация</strong>
+                            <div>Ожидание...</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot" id="dot5">5</div>
+                        <div class="timeline-content" id="content5">
+                            <strong>Мульти-критериальная оптимизация</strong>
+                            <div>Ожидание...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pareto Front -->
+            <div class="section">
+                <h2>3. Оптимальные варианты (Pareto Front)</h2>
+                <div id="paretoFront" class="pareto-front">
+                    <!-- Заполнится динамически -->
+                </div>
+            </div>
+
+            <!-- Generated Code -->
+            <div class="section">
+                <h2>4. Сгенерированный код (WAT)</h2>
+                <div id="generatedCode" class="output"></div>
+            </div>
+
+            <!-- Verification Results -->
+            <div class="section">
+                <h2>5. Результаты верификации</h2>
+                <div id="verificationResults" class="output"></div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="section">
+                <h2>6. Статистика</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="value" id="statAlgorithms">-</div>
+                        <div class="label">Рассмотрено алгоритмов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statVariants">-</div>
+                        <div class="label">Сгенерировано вариантов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statSpeedup">-</div>
+                        <div class="label">Ускорение</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statConfidence">-</div>
+                        <div class="label">Уверенность</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="stage12-code-generation.js"></script>
+    <script>
+        let codeGenSystem = null;
+        let currentResult = null;
+        let selectedVariant = null;
+
+        // Initialize system
+        window.addEventListener('load', async () => {
+            console.log('Initializing Code Generation System...');
+            codeGenSystem = new CodeGenerationSystem();
+            console.log('System ready!');
+        });
+
+        // Load example
+        function loadExample(type) {
+            const examples = {
+                primes: {
+                    text: 'Найти все простые числа до N используя эффективный алгоритм с векторизацией',
+                    operation: 'find_primes',
+                    size: 10000
+                },
+                check_prime: {
+                    text: 'Проверить является ли число N простым, используя быстрый алгоритм',
+                    operation: 'check_if_prime',
+                    size: 1000000
+                },
+                sort: {
+                    text: 'Отсортировать массив из N элементов максимально быстро',
+                    operation: 'sort_array',
+                    size: 100000
+                },
+                gcd: {
+                    text: 'Найти наибольший общий делитель двух чисел эффективно',
+                    operation: 'gcd',
+                    size: 1000000
+                }
+            };
+
+            const example = examples[type];
+            document.getElementById('intentText').value = example.text;
+            document.getElementById('operationType').value = example.operation;
+            document.getElementById('dataSize').value = example.size;
+        }
+
+        // Generate code
+        async function generateCode() {
+            if (!codeGenSystem) {
+                alert('Система ещё не инициализирована. Подождите...');
+                return;
+            }
+
+            // Get inputs
+            const intent = document.getElementById('intentText').value;
+            const operationType = document.getElementById('operationType').value;
+            const dataSize = parseInt(document.getElementById('dataSize').value);
+            const priority = document.getElementById('priority').value;
+
+            if (!intent.trim()) {
+                alert('Пожалуйста, введите описание намерения');
+                return;
+            }
+
+            // Clear previous results
+            clearResults();
+
+            // Build specification
+            const spec = {
+                intent: intent,
+                task: operationType,  // This will be used as the task identifier
+                operationType: operationType,
+                inputSize: dataSize,
+                constraints: {
+                    maxSize: 10000,
+                    maxTime: 1000,
+                    priority: priority,
+                    performance: priority === 'speed' ? 0.9 : 0.5,
+                    codeSize: priority === 'size' ? 0.9 : 0.5,
+                    energy: priority === 'energy' ? 0.9 : 0.5
+                },
+                examples: [
+                    { input: [10], expectedOutput: operationType === 'find_primes' ? [2,3,5,7] : [55] }
+                ]
+            };
+
+            console.log('Generating code for:', spec);
+
+            // Step 1: Parse intent
+            updateTimeline(1, 'active', 'Парсинг намерения...');
+            await sleep(500);
+
+            const parsedIntent = codeGenSystem.intentParser.parse(spec);
+            updateTimeline(1, 'completed', `✓ Обработано: ${parsedIntent.task}`);
+
+            // Step 2: Select algorithm
+            updateTimeline(2, 'active', 'Поиск оптимального алгоритма...');
+            await sleep(500);
+
+            const algorithm = codeGenSystem.algorithmSelector.selectBestAlgorithm(parsedIntent, spec.constraints);
+
+            if (!algorithm) {
+                updateTimeline(2, 'completed', `✗ Алгоритм не найден для задачи: ${parsedIntent.task}`);
+                alert(`Ошибка: Алгоритм для задачи "${parsedIntent.task}" не найден в базе знаний.\n\nДоступные задачи:\n- find_primes\n- check_if_prime\n- sort_array\n- binary_search\n- gcd`);
+                return;
+            }
+
+            updateTimeline(2, 'completed',
+                `✓ Выбран: ${algorithm.name}\n` +
+                `  Сложность: ${algorithm.complexity}\n` +
+                `  Ожидаемое ускорение: ${algorithm.speedup.toFixed(1)}x`
+            );
+            const algorithms = codeGenSystem.algorithmSelector.knownAlgorithms.get(parsedIntent.task);
+            document.getElementById('statAlgorithms').textContent = algorithms ? algorithms.length : 0;
+
+            // Step 3: Generate code
+            updateTimeline(3, 'active', 'Генерация WASM кода...');
+            await sleep(800);
+
+            const generated = codeGenSystem.codeGenerator.generate(algorithm, parsedIntent, spec.constraints);
+
+            const optimizationsList = generated.metadata?.optimizations?.map(o => o.type).join(', ') || 'none';
+
+            updateTimeline(3, 'completed',
+                `✓ Сгенерировано ${generated.wat.split('\n').length} строк WAT кода\n` +
+                `  Применено оптимизаций: ${optimizationsList}`
+            );
+
+            // Display generated code
+            displayGeneratedCode(generated);
+
+            // Step 4: Verify
+            updateTimeline(4, 'active', 'Формальная верификация...');
+            await sleep(1000);
+
+            const verification = codeGenSystem.verifier.verify(generated, spec);
+            updateTimeline(4, 'completed',
+                `✓ Верифицировано: ${verification.verified ? 'PASSED' : 'FAILED'}\n` +
+                `  Уверенность: ${(verification.confidence * 100).toFixed(1)}%\n` +
+                `  Тестов: ${verification.totalTests}`
+            );
+
+            displayVerification(verification);
+
+            document.getElementById('statConfidence').textContent =
+                `${(verification.confidence * 100).toFixed(0)}%`;
+
+            // Step 5: Multi-objective optimization
+            updateTimeline(5, 'active', 'Поиск Pareto-оптимальных вариантов...');
+            await sleep(1200);
+
+            const variants = codeGenSystem.optimizer.optimize(
+                algorithm,
+                parsedIntent,
+                spec.constraints
+            );
+
+            updateTimeline(5, 'completed',
+                `✓ Найдено ${variants.paretoFront.length} оптимальных вариантов\n` +
+                `  Лучшее ускорение: ${variants.bestVariant.objectives.speed.toFixed(1)}x\n` +
+                `  Минимальный размер: ${variants.bestVariant.objectives.size} bytes`
+            );
+
+            displayParetoFront(variants);
+
+            document.getElementById('statVariants').textContent = variants.paretoFront.length;
+            document.getElementById('statSpeedup').textContent =
+                `${variants.bestVariant.objectives.speed.toFixed(1)}x`;
+
+            // Store result
+            currentResult = {
+                spec: spec,
+                algorithm: algorithm,
+                generated: generated,
+                verification: verification,
+                variants: variants
+            };
+
+            console.log('Code generation complete!', currentResult);
+        }
+
+        // Update timeline
+        function updateTimeline(step, status, text) {
+            const dot = document.getElementById(`dot${step}`);
+            const content = document.getElementById(`content${step}`);
+
+            dot.className = `timeline-dot ${status}`;
+            content.className = `timeline-content ${status}`;
+            content.innerHTML = `<strong>${content.querySelector('strong').textContent}</strong><div>${text}</div>`;
+        }
+
+        // Display generated code
+        function displayGeneratedCode(generated) {
+            const codeDiv = document.getElementById('generatedCode');
+
+            // Syntax highlighting (простой вариант)
+            let highlighted = generated.wat
+                .replace(/(module|func|param|result|local|i32|f32|return|if|else|end|loop|block|br|call)/g,
+                    '<span class="keyword">$1</span>')
+                .replace(/(\d+)/g, '<span class="number">$1</span>')
+                .replace(/(;;.*)/g, '<span class="comment">$1</span>');
+
+            codeDiv.innerHTML = highlighted;
+        }
+
+        // Display verification
+        function displayVerification(verification) {
+            const div = document.getElementById('verificationResults');
+
+            let html = '';
+
+            html += `<strong>Статус:</strong> ${verification.verified ? '✓ PASSED' : '✗ FAILED'}\n`;
+            html += `<strong>Уверенность:</strong> ${(verification.confidence * 100).toFixed(1)}%\n`;
+            html += `<strong>Тестов пройдено:</strong> ${verification.passedTests} / ${verification.totalTests}\n\n`;
+
+            html += `<strong>Примеры:</strong>\n`;
+            for (const test of verification.details.exampleTests) {
+                const icon = test.passed ? '✓' : '✗';
+                html += `  ${icon} Input: ${JSON.stringify(test.input)} → Output: ${JSON.stringify(test.output)}\n`;
+            }
+
+            html += `\n<strong>Property-based тесты:</strong> ${verification.details.propertyTests.passed} / ${verification.details.propertyTests.total}\n`;
+            html += `<strong>Граничные значения:</strong> ${verification.details.boundaryTests.passed} / ${verification.details.boundaryTests.total}\n`;
+
+            div.textContent = html;
+        }
+
+        // Display Pareto front
+        function displayParetoFront(variants) {
+            const container = document.getElementById('paretoFront');
+            container.innerHTML = '';
+
+            for (let i = 0; i < variants.paretoFront.length; i++) {
+                const variant = variants.paretoFront[i];
+
+                const card = document.createElement('div');
+                card.className = 'variant-card';
+                card.onclick = () => selectVariant(i);
+
+                card.innerHTML = `
+                    <h3>Вариант ${i + 1}</h3>
+                    <div class="variant-metrics">
+                        <div class="metric-row">
+                            <span class="metric-label">Скорость:</span>
+                            <span class="metric-value">${variant.objectives.speed.toFixed(1)}x</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Размер:</span>
+                            <span class="metric-value">${variant.objectives.size} B</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Энергия:</span>
+                            <span class="metric-value">${variant.objectives.energy.toFixed(0)} mJ</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Оптимизации:</span>
+                            <span class="metric-value">${variant.optimizations?.length || 0}</span>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            }
+
+            // Select best by default
+            selectVariant(0);
+        }
+
+        // Select variant
+        function selectVariant(index) {
+            selectedVariant = index;
+
+            const cards = document.querySelectorAll('.variant-card');
+            cards.forEach((card, i) => {
+                card.classList.toggle('selected', i === index);
+            });
+
+            // Update displayed code
+            if (currentResult && currentResult.variants) {
+                const variant = currentResult.variants.paretoFront[index];
+                displayGeneratedCode(variant);
+            }
+        }
+
+        // Clear results
+        function clearResults() {
+            document.getElementById('generatedCode').innerHTML = '';
+            document.getElementById('verificationResults').innerHTML = '';
+            document.getElementById('paretoFront').innerHTML = '';
+
+            for (let i = 1; i <= 5; i++) {
+                updateTimeline(i, '', 'Ожидание...');
+            }
+
+            document.getElementById('statAlgorithms').textContent = '-';
+            document.getElementById('statVariants').textContent = '-';
+            document.getElementById('statSpeedup').textContent = '-';
+            document.getElementById('statConfidence').textContent = '-';
+
+            currentResult = null;
+            selectedVariant = null;
+        }
+
+        // Utility
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Load default example
+        loadExample('primes');
+    </script>
+</body>
+</html>

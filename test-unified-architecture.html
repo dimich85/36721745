@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Unified Architecture</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        #output {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 800px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .success { color: #22c55e; font-weight: bold; }
+        .error { color: #ef4444; font-weight: bold; }
+        .info { color: #3b82f6; }
+        .warning { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Unified Architecture - Integration Tests</h1>
+        <p>Running comprehensive tests on all architecture layers...</p>
+        <div id="output">Initializing tests...</div>
+    </div>
+
+    <!-- Load all required modules -->
+    <script src="vfs-core.js"></script>
+    <script src="vfs-indexing.js"></script>
+    <script src="business-logic-module.js"></script>
+    <script src="enhanced-microisa-core.js"></script>
+    <script src="microisa-integration.js"></script>
+    <script src="wasm-boundary-layer.js"></script>
+
+    <script src="stage5-lexer.js"></script>
+    <script src="stage5-parser.js"></script>
+    <script src="stage5-type-analyzer.js"></script>
+    <script src="stage5-wasm-generator.js"></script>
+    <script src="stage5-compiler.js"></script>
+
+    <script src="stage8-progressive-loader-integrated.js"></script>
+    <script src="stage8-wat-generator.js"></script>
+
+    <script src="stage9-neural-optimizer.js"></script>
+    <script src="stage9-adaptive-learning.js"></script>
+    <script src="stage10-runtime-specialization.js"></script>
+    <script src="stage11-distributed-learning.js"></script>
+
+    <script src="stage12-code-generation.js"></script>
+
+    <script src="stage13-hybrid-architecture.js"></script>
+
+    <script src="webgpu-render-engine.js"></script>
+    <script src="gpu-blur-effect.js"></script>
+
+    <script src="unified-architecture.js"></script>
+    <script src="test-unified-architecture.js"></script>
+
+    <script>
+        // Redirect console to output div
+        const output = document.getElementById('output');
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+            const message = args.join(' ');
+            const div = document.createElement('div');
+
+            if (message.includes('✅')) {
+                div.className = 'success';
+            } else if (message.includes('❌')) {
+                div.className = 'error';
+            } else if (message.includes('⚠️')) {
+                div.className = 'warning';
+            } else {
+                div.className = 'info';
+            }
+
+            div.textContent = message;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            const message = args.join(' ');
+            const div = document.createElement('div');
+            div.className = 'error';
+            div.textContent = '❌ ' + message;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+
+            originalError.apply(console, args);
+        };
+
+        // Clear initial message
+        output.innerHTML = '';
+    </script>
+</body>
+</html>

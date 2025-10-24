@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stage 8: Progressive Loading + VFS Integration - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            font-size: 24px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .phase-tracker {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .phase {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f5f5f5;
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phase.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .phase.completed {
+            background: #48bb78;
+            color: white;
+        }
+
+        .phase-name {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .phase-time {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .stat-unit {
+            font-size: 14px;
+            color: #999;
+            margin-left: 5px;
+        }
+
+        .console {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .console-line {
+            margin-bottom: 4px;
+            color: #d4d4d4;
+        }
+
+        .console-line.success {
+            color: #4ade80;
+        }
+
+        .console-line.error {
+            color: #f87171;
+        }
+
+        .console-line.warning {
+            color: #fbbf24;
+        }
+
+        .console-line.info {
+            color: #60a5fa;
+        }
+
+        .vfs-tree {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .vfs-item {
+            padding: 4px 8px;
+            margin: 2px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .vfs-item:hover {
+            background: #e9ecef;
+        }
+
+        .vfs-item.directory {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .vfs-item.file {
+            color: #333;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .results-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+        }
+
+        .speedup {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .speedup.high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .speedup.medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .speedup.low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .loading {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .benchmark {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .benchmark h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .comparison {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .comparison-item {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            border: 2px solid #e9ecef;
+        }
+
+        .comparison-item.winner {
+            border-color: #48bb78;
+            background: #f0fdf4;
+        }
+
+        .comparison-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .comparison-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 Stage 8: Progressive Loading with VFS Integration</h1>
+            <p class="subtitle">
+                Демонстрация полного pipeline оптимизации: Profiling → AI Analysis → WAT Generation → WASM Compilation → Hot Swap.
+                <br>
+                <strong>Ключевая особенность:</strong> AI получает ПОЛНУЮ видимость всего кода за 100ms, пока UI остается отзывчивым с 0ms.
+            </p>
+        </div>
+
+        <!-- Controls -->
+        <div class="panel">
+            <h2><span class="icon">⚙️</span> Управление</h2>
+            <div class="controls">
+                <button id="btnInitialize">1. Инициализировать VFS</button>
+                <button id="btnLoadSamples" disabled>2. Загрузить примеры</button>
+                <button id="btnStartOptimization" disabled>3. Запустить оптимизацию</button>
+                <button id="btnRunBenchmark" disabled>4. Провести бенчмарк</button>
+                <button id="btnReset">Сбросить</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Phase Tracker -->
+        <div class="panel">
+            <h2><span class="icon">📊</span> Фазы выполнения</h2>
+            <div class="phase-tracker">
+                <div class="phase" id="phaseIdle">
+                    <div class="phase-name">Idle</div>
+                    <div class="phase-time">—</div>
+                </div>
+                <div class="phase" id="phaseProfiling">
+                    <div class="phase-name">Profiling</div>
+                    <div class="phase-time" id="timeProfiler">—</div>
+                </div>
+                <div class="phase" id="phaseAnalyzing">
+                    <div class="phase-name">AI Analysis</div>
+                    <div class="phase-time" id="timeAnalyzer">—</div>
+                </div>
+                <div class="phase" id="phaseGenerating">
+                    <div class="phase-name">WAT Gen</div>
+                    <div class="phase-time" id="timeGenerator">—</div>
+                </div>
+                <div class="phase" id="phaseCompiling">
+                    <div class="phase-name">WASM Comp</div>
+                    <div class="phase-time" id="timeCompiler">—</div>
+                </div>
+                <div class="phase" id="phaseHotSwap">
+                    <div class="phase-name">Hot Swap</div>
+                    <div class="phase-time" id="timeHotSwap">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Layout -->
+        <div class="grid">
+            <!-- Statistics -->
+            <div class="panel">
+                <h2><span class="icon">📈</span> Статистика</h2>
+                <div class="stats-grid">
+                    <div class="stat">
+                        <div class="stat-label">Функций загружено</div>
+                        <div class="stat-value" id="statTotalFunctions">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Оптимизировано</div>
+                        <div class="stat-value" id="statOptimized">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Ускорение</div>
+                        <div class="stat-value" id="statSpeedup">1.0<span class="stat-unit">x</span></div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Время компиляции</div>
+                        <div class="stat-value" id="statCompileTime">0<span class="stat-unit">ms</span></div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Размер WAT</div>
+                        <div class="stat-value" id="statWatSize">0<span class="stat-unit">KB</span></div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Файлов в VFS</div>
+                        <div class="stat-value" id="statVfsFiles">0</div>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div id="resultsContainer" style="display: none;">
+                    <h3>Результаты оптимизации</h3>
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Функция</th>
+                                <th>Оптимизации</th>
+                                <th>Ускорение</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VFS Tree -->
+            <div class="panel">
+                <h2><span class="icon">📁</span> Virtual File System</h2>
+                <div class="vfs-tree" id="vfsTree">
+                    <div style="color: #999; text-align: center; padding: 100px 20px;">
+                        Инициализируйте VFS для просмотра файловой системы
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console -->
+        <div class="panel">
+            <h2><span class="icon">💻</span> Консоль</h2>
+            <div class="console" id="console">
+                <div class="console-line info">Готов к запуску. Нажмите "1. Инициализировать VFS" для начала.</div>
+            </div>
+        </div>
+
+        <!-- Benchmark Results -->
+        <div class="panel" id="benchmarkPanel" style="display: none;">
+            <h2><span class="icon">⚡</span> Результаты бенчмарка</h2>
+            <div class="benchmark">
+                <h3>Сравнение производительности: JavaScript vs WASM</h3>
+                <div class="comparison">
+                    <div class="comparison-item">
+                        <div class="comparison-label">JavaScript (исходный)</div>
+                        <div class="comparison-value" id="benchJS">—</div>
+                    </div>
+                    <div class="comparison-item winner">
+                        <div class="comparison-label">WASM (оптимизированный)</div>
+                        <div class="comparison-value" id="benchWASM">—</div>
+                    </div>
+                    <div class="comparison-item">
+                        <div class="comparison-label">Ускорение</div>
+                        <div class="comparison-value" id="benchSpeedup">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="vfs-core.js"></script>
+    <script src="vfs-indexing.js"></script>
+    <script src="stage8-progressive-loader-integrated.js"></script>
+
+    <script>
+        // Global state
+        let vfs = null;
+        let loader = null;
+        let businessLogic = {};
+
+        // UI Elements
+        const consoleElement = document.getElementById('console');
+        const vfsTree = document.getElementById('vfsTree');
+        const progressBar = document.getElementById('progressBar');
+
+        // Buttons
+        const btnInitialize = document.getElementById('btnInitialize');
+        const btnLoadSamples = document.getElementById('btnLoadSamples');
+        const btnStartOptimization = document.getElementById('btnStartOptimization');
+        const btnRunBenchmark = document.getElementById('btnRunBenchmark');
+        const btnReset = document.getElementById('btnReset');
+
+        // Console logging
+        function log(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleElement.appendChild(line);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+
+        // Update VFS tree view
+        function updateVFSTree() {
+            if (!vfs) return;
+
+            const tree = [];
+
+            function renderDirectory(dir, indent = 0) {
+                const children = dir.getChildren();
+
+                for (const child of children) {
+                    const prefix = '  '.repeat(indent);
+                    const icon = child.type === 'directory' ? '📁' : '📄';
+
+                    tree.push(`<div class="vfs-item ${child.type}">${prefix}${icon} ${child.name}</div>`);
+
+                    if (child.type === 'directory') {
+                        renderDirectory(child, indent + 1);
+                    }
+                }
+            }
+
+            tree.push('<div class="vfs-item directory">📁 / (root)</div>');
+            renderDirectory(vfs.root, 1);
+
+            vfsTree.innerHTML = tree.join('');
+        }
+
+        // Update statistics
+        function updateStats(stats) {
+            document.getElementById('statTotalFunctions').textContent = stats.totalFunctions || 0;
+            document.getElementById('statOptimized').textContent = stats.compiledFunctions || 0;
+            document.getElementById('statSpeedup').innerHTML = `${stats.totalSpeedup?.toFixed(2) || '1.0'}<span class="stat-unit">x</span>`;
+            document.getElementById('statCompileTime').innerHTML = `${stats.phaseTimings?.total?.toFixed(0) || 0}<span class="stat-unit">ms</span>`;
+            document.getElementById('statVfsFiles').textContent = vfs ? vfs.getStats().totalFiles : 0;
+        }
+
+        // Update phase tracker
+        function updatePhase(phase) {
+            const phases = ['idle', 'profiling', 'analyzing', 'generating', 'compiling', 'hotSwap'];
+
+            phases.forEach((p, index) => {
+                const el = document.getElementById(`phase${p.charAt(0).toUpperCase() + p.slice(1)}`);
+                el.classList.remove('active', 'completed');
+
+                const currentIndex = phases.indexOf(phase);
+                if (index < currentIndex) {
+                    el.classList.add('completed');
+                } else if (p === phase) {
+                    el.classList.add('active');
+                }
+            });
+        }
+
+        // Step 1: Initialize VFS
+        btnInitialize.addEventListener('click', async () => {
+            log('Инициализация Virtual File System...', 'info');
+
+            try {
+                vfs = new VFS.VirtualFileSystem();
+                loader = new ProgressiveLoaderVFS(vfs);
+
+                await loader.initialize();
+
+                log('✓ VFS и Progressive Loader инициализированы', 'success');
+                updateVFSTree();
+                updateStats({ totalFunctions: 0 });
+
+                btnInitialize.disabled = true;
+                btnLoadSamples.disabled = false;
+                progressBar.style.width = '20%';
+
+            } catch (error) {
+                log(`Ошибка инициализации: ${error.message}`, 'error');
+            }
+        });
+
+        // Step 2: Load sample functions
+        btnLoadSamples.addEventListener('click', () => {
+            log('Загрузка примеров функций в VFS...', 'info');
+
+            try {
+                // Create sample JavaScript files with various functions
+                const samples = {
+                    'fibonacci.js': `
+                        function fibonacci(n) {
+                            if (n <= 1) return n;
+                            return fibonacci(n - 1) + fibonacci(n - 2);
+                        }
+                    `,
+                    'matrix.js': `
+                        function matrixMultiply(a, b) {
+                            const result = [];
+                            for (let i = 0; i < a.length; i++) {
+                                result[i] = [];
+                                for (let j = 0; j < b[0].length; j++) {
+                                    let sum = 0;
+                                    for (let k = 0; k < a[0].length; k++) {
+                                        sum += a[i][k] * b[k][j];
+                                    }
+                                    result[i][j] = sum;
+                                }
+                            }
+                            return result;
+                        }
+                    `,
+                    'prime.js': `
+                        function isPrime(n) {
+                            if (n <= 1) return false;
+                            if (n <= 3) return true;
+                            if (n % 2 === 0 || n % 3 === 0) return false;
+                            for (let i = 5; i * i <= n; i += 6) {
+                                if (n % i === 0 || n % (i + 2) === 0) return false;
+                            }
+                            return true;
+                        }
+                    `,
+                    'array-ops.js': `
+                        function sumArray(arr) {
+                            let sum = 0;
+                            for (let i = 0; i < arr.length; i++) {
+                                sum += arr[i];
+                            }
+                            return sum;
+                        }
+
+                        function averageArray(arr) {
+                            return sumArray(arr) / arr.length;
+                        }
+                    `
+                };
+
+                for (const [filename, code] of Object.entries(samples)) {
+                    const path = `/Applications/${filename}`;
+                    vfs.writeFile(path, code, 'application/javascript');
+                    log(`  ✓ Загружен: ${path}`, 'success');
+                }
+
+                // Load functions into businessLogic
+                businessLogic = loader.loadBusinessLogicFromVFS('/Applications');
+
+                log(`✓ Загружено ${Object.keys(businessLogic).length} функций`, 'success');
+
+                updateVFSTree();
+                updateStats({ totalFunctions: Object.keys(businessLogic).length });
+
+                btnLoadSamples.disabled = true;
+                btnStartOptimization.disabled = false;
+                progressBar.style.width = '40%';
+
+            } catch (error) {
+                log(`Ошибка загрузки: ${error.message}`, 'error');
+            }
+        });
+
+        // Step 3: Start optimization
+        btnStartOptimization.addEventListener('click', async () => {
+            log('Запуск Progressive Loading Pipeline...', 'info');
+            log('═'.repeat(50), 'info');
+
+            try {
+                // Setup callbacks
+                loader.callbacks.onPhaseChange = (phase) => {
+                    log(`Фаза: ${phase}`, 'info');
+                    updatePhase(phase);
+                };
+
+                loader.callbacks.onProgress = (progress) => {
+                    const { phase, time } = progress;
+                    const timeEl = document.getElementById(`time${phase.charAt(0).toUpperCase() + phase.slice(1)}`);
+                    if (timeEl) {
+                        timeEl.textContent = `${time.toFixed(0)}ms`;
+                    }
+
+                    // Update progress bar
+                    const phaseProgress = {
+                        profiling: 50,
+                        analyzing: 60,
+                        generating: 75,
+                        compiling: 90,
+                        hotSwap: 100
+                    };
+                    progressBar.style.width = `${phaseProgress[phase] || 40}%`;
+                };
+
+                loader.callbacks.onComplete = (stats) => {
+                    log('═'.repeat(50), 'success');
+                    log('✅ Оптимизация завершена!', 'success');
+                    log(`   Оптимизировано: ${stats.compiledFunctions}/${stats.totalFunctions}`, 'success');
+                    log(`   Ожидаемое ускорение: ${stats.totalSpeedup.toFixed(2)}x`, 'success');
+                    log(`   Общее время: ${stats.phaseTimings.total.toFixed(2)}ms`, 'success');
+
+                    updateStats(stats);
+                    updatePhase('ready');
+
+                    btnStartOptimization.disabled = true;
+                    btnRunBenchmark.disabled = false;
+                };
+
+                loader.callbacks.onError = (error) => {
+                    log(`❌ Ошибка: ${error.message}`, 'error');
+                };
+
+                // Start the pipeline
+                await loader.start(businessLogic);
+
+            } catch (error) {
+                log(`Критическая ошибка: ${error.message}`, 'error');
+                console.error(error);
+            }
+        });
+
+        // Step 4: Run benchmark
+        btnRunBenchmark.addEventListener('click', () => {
+            log('Запуск бенчмарка...', 'info');
+
+            try {
+                // Simple benchmark: fibonacci(20)
+                const iterations = 100;
+
+                // Benchmark original JS
+                const jsStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    const original = loader.originalFunctions.get('fibonacci');
+                    if (original) original(20);
+                }
+                const jsTime = performance.now() - jsStart;
+
+                // Benchmark WASM
+                const wasmStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    const wasm = loader.compiledFunctions.get('fibonacci');
+                    if (wasm) wasm(20);
+                }
+                const wasmTime = performance.now() - wasmStart;
+
+                const speedup = jsTime / wasmTime;
+
+                log(`Бенчмарк завершен (${iterations} итераций):`, 'success');
+                log(`  JavaScript: ${jsTime.toFixed(2)}ms`, 'info');
+                log(`  WASM: ${wasmTime.toFixed(2)}ms`, 'info');
+                log(`  Ускорение: ${speedup.toFixed(2)}x`, 'success');
+
+                // Update UI
+                document.getElementById('benchJS').textContent = `${jsTime.toFixed(2)}ms`;
+                document.getElementById('benchWASM').textContent = `${wasmTime.toFixed(2)}ms`;
+                document.getElementById('benchSpeedup').textContent = `${speedup.toFixed(2)}x`;
+                document.getElementById('benchmarkPanel').style.display = 'block';
+
+            } catch (error) {
+                log(`Ошибка бенчмарка: ${error.message}`, 'error');
+            }
+        });
+
+        // Reset
+        btnReset.addEventListener('click', () => {
+            location.reload();
+        });
+    </script>
+</body>
+</html>

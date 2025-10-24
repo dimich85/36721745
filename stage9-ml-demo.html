@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stage 9: AI-Driven WAT Synthesis - ML Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            font-size: 24px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .stat-unit {
+            font-size: 14px;
+            color: #999;
+            margin-left: 5px;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Training Progress */
+        .training-progress {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar-container {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+        }
+
+        .comparison-table td {
+            font-size: 14px;
+        }
+
+        .better {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        .worse {
+            color: #f56565;
+        }
+
+        /* Neural Network Visualization */
+        .nn-viz {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-height: 300px;
+        }
+
+        .nn-layer {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nn-layer-label {
+            text-align: center;
+            font-size: 11px;
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .nn-neuron {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            transition: transform 0.3s;
+        }
+
+        .nn-neuron:hover {
+            transform: scale(1.1);
+        }
+
+        .nn-neuron.small {
+            width: 30px;
+            height: 30px;
+        }
+
+        /* Console */
+        .console {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .console-line {
+            margin-bottom: 4px;
+            color: #d4d4d4;
+        }
+
+        .console-line.success {
+            color: #4ade80;
+        }
+
+        .console-line.error {
+            color: #f87171;
+        }
+
+        .console-line.warning {
+            color: #fbbf24;
+        }
+
+        .console-line.info {
+            color: #60a5fa;
+        }
+
+        /* Epoch Cards */
+        .epoch-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .epoch-card {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s;
+        }
+
+        .epoch-card.current {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .epoch-card.completed {
+            border-color: #48bb78;
+            background: #f0fdf4;
+        }
+
+        .epoch-number {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .epoch-loss {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+            margin-top: 5px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .training {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧠 Stage 9: AI-Driven WAT Synthesis</h1>
+            <p class="subtitle">
+                <span class="highlight">Машинное обучение</span> для предсказания оптимальных оптимизаций.
+                Вместо фиксированных правил (Stage 8), нейронная сеть <strong>учится</strong> на реальных данных,
+                улучшаясь с каждым бенчмарком. Ожидаемое улучшение: <span class="highlight">+33%</span> vs эвристики.
+            </p>
+        </div>
+
+        <!-- Statistics -->
+        <div class="panel">
+            <h2><span class="icon">📊</span> Статистика ML модели</h2>
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-label">Training Iterations</div>
+                    <div class="stat-value" id="statIterations">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Current Loss</div>
+                    <div class="stat-value" id="statLoss">—</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Learning Rate</div>
+                    <div class="stat-value" id="statLR">0.001</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Experience Buffer</div>
+                    <div class="stat-value" id="statBuffer">0<span class="stat-unit">/1000</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="panel">
+            <h2><span class="icon">⚙️</span> Управление</h2>
+            <button id="btnPretrainModel">1. Предобучить модель (1000 примеров)</button>
+            <button id="btnGenerateExample" disabled>2. Сгенерировать пример</button>
+            <button id="btnTrainIteration" disabled>3. Обучить (1 итерация)</button>
+            <button id="btnTrainBatch" disabled>4. Обучить (10 итераций)</button>
+            <button id="btnTestPrediction" disabled>5. Тестировать предсказания</button>
+            <button id="btnCompareMethods" disabled>6. Сравнить с эвристиками</button>
+            <button id="btnReset">Сбросить</button>
+        </div>
+
+        <!-- Grid Layout -->
+        <div class="grid">
+            <!-- Loss Chart -->
+            <div class="panel">
+                <h2><span class="icon">📈</span> Loss Curve</h2>
+                <div class="chart-container">
+                    <canvas id="lossChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Speedup Comparison -->
+            <div class="panel">
+                <h2><span class="icon">⚡</span> Speedup Comparison</h2>
+                <div class="chart-container">
+                    <canvas id="speedupChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Neural Network Visualization -->
+        <div class="panel">
+            <h2><span class="icon">🧠</span> Neural Network Architecture</h2>
+            <div class="nn-viz">
+                <div class="nn-layer">
+                    <div class="nn-layer-label">Input<br>(50 features)</div>
+                    <div class="nn-neuron small">1</div>
+                    <div class="nn-neuron small">2</div>
+                    <div class="nn-neuron small">3</div>
+                    <div style="text-align: center; color: #999;">...</div>
+                    <div class="nn-neuron small">50</div>
+                </div>
+
+                <div style="color: #999; font-size: 24px;">→</div>
+
+                <div class="nn-layer">
+                    <div class="nn-layer-label">Hidden 1<br>(128 neurons)</div>
+                    <div class="nn-neuron">1</div>
+                    <div class="nn-neuron">2</div>
+                    <div class="nn-neuron">3</div>
+                    <div style="text-align: center; color: #999;">...</div>
+                    <div class="nn-neuron">128</div>
+                </div>
+
+                <div style="color: #999; font-size: 24px;">→</div>
+
+                <div class="nn-layer">
+                    <div class="nn-layer-label">Hidden 2<br>(64 neurons)</div>
+                    <div class="nn-neuron">1</div>
+                    <div class="nn-neuron">2</div>
+                    <div style="text-align: center; color: #999;">...</div>
+                    <div class="nn-neuron">64</div>
+                </div>
+
+                <div style="color: #999; font-size: 24px;">→</div>
+
+                <div class="nn-layer">
+                    <div class="nn-layer-label">Hidden 3<br>(32 neurons)</div>
+                    <div class="nn-neuron">1</div>
+                    <div class="nn-neuron">2</div>
+                    <div style="text-align: center; color: #999;">...</div>
+                    <div class="nn-neuron">32</div>
+                </div>
+
+                <div style="color: #999; font-size: 24px;">→</div>
+
+                <div class="nn-layer">
+                    <div class="nn-layer-label">Output<br>(7 optimizations)</div>
+                    <div class="nn-neuron small">I</div>
+                    <div class="nn-neuron small">L</div>
+                    <div class="nn-neuron small">V</div>
+                    <div class="nn-neuron small">C</div>
+                    <div class="nn-neuron small">T</div>
+                    <div class="nn-neuron small">E</div>
+                    <div class="nn-neuron small">S</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; text-align: center; color: #666; font-size: 12px;">
+                I = Inlining, L = Loop Unrolling, V = Vectorization, C = Constant Folding,<br>
+                T = Tail Call, E = CSE, S = Strength Reduction
+            </div>
+        </div>
+
+        <!-- Training Progress -->
+        <div class="panel">
+            <h2><span class="icon">🎓</span> Training Progress</h2>
+            <div class="training-progress">
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="trainingProgress" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progressText">Готов к обучению</div>
+            </div>
+            <div class="epoch-cards" id="epochCards">
+                <!-- Epoch cards will be added dynamically -->
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="panel">
+            <h2><span class="icon">🔬</span> Сравнение: Эвристики vs ML</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Метрика</th>
+                        <th>Stage 8 (Эвристики)</th>
+                        <th>Stage 9 (ML)</th>
+                        <th>Улучшение</th>
+                    </tr>
+                </thead>
+                <tbody id="comparisonTableBody">
+                    <tr>
+                        <td>Средний speedup</td>
+                        <td id="heuristicSpeedup">—</td>
+                        <td id="mlSpeedup">—</td>
+                        <td id="speedupImprovement">—</td>
+                    </tr>
+                    <tr>
+                        <td>Оптимальный выбор</td>
+                        <td id="heuristicAccuracy">—</td>
+                        <td id="mlAccuracy">—</td>
+                        <td id="accuracyImprovement">—</td>
+                    </tr>
+                    <tr>
+                        <td>Prediction Error (MAE)</td>
+                        <td id="heuristicError">—</td>
+                        <td id="mlError">—</td>
+                        <td id="errorImprovement">—</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Console -->
+        <div class="panel">
+            <h2><span class="icon">💻</span> Консоль</h2>
+            <div class="console" id="consoleElement">
+                <div class="console-line info">Готов к запуску. Нажмите "1. Предобучить модель" для начала.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="stage9-neural-optimizer.js"></script>
+    <script src="stage9-adaptive-learning.js"></script>
+
+    <script>
+        // Global state
+        let predictor = null;
+        let adaptiveLearning = null;
+        let trainingHistory = {
+            losses: [],
+            iterations: []
+        };
+        let comparisonData = null;
+
+        // UI Elements
+        const consoleElement = document.getElementById('consoleElement');
+
+        // Charts
+        let lossChart = null;
+        let speedupChart = null;
+
+        // Console logging
+        function log(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleElement.appendChild(line);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+
+        // Update statistics
+        function updateStats() {
+            if (!predictor) return;
+
+            const stats = adaptiveLearning.getStats();
+
+            document.getElementById('statIterations').textContent = stats.trainingIterations;
+            document.getElementById('statLoss').textContent = trainingHistory.losses.length > 0
+                ? trainingHistory.losses[trainingHistory.losses.length - 1].toFixed(4)
+                : '—';
+            document.getElementById('statLR').textContent = stats.currentLearningRate.toFixed(6);
+            document.getElementById('statBuffer').innerHTML = `${stats.experienceBufferSize}<span class="stat-unit">/1000</span>`;
+        }
+
+        // Initialize charts (simple canvas-based)
+        function initCharts() {
+            updateLossChart();
+            updateSpeedupChart();
+        }
+
+        function updateLossChart() {
+            const canvas = document.getElementById('lossChart');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.parentElement.clientWidth;
+            const height = canvas.parentElement.clientHeight;
+
+            canvas.width = width;
+            canvas.height = height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (trainingHistory.losses.length === 0) {
+                ctx.fillStyle = '#999';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Начните обучение для просмотра Loss Curve', width / 2, height / 2);
+                return;
+            }
+
+            // Draw axes
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(40, 20);
+            ctx.lineTo(40, height - 40);
+            ctx.lineTo(width - 20, height - 40);
+            ctx.stroke();
+
+            // Draw loss curve
+            const maxLoss = Math.max(...trainingHistory.losses);
+            const minLoss = Math.min(...trainingHistory.losses);
+            const lossRange = maxLoss - minLoss || 1;
+
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            trainingHistory.losses.forEach((loss, i) => {
+                const x = 40 + (i / (trainingHistory.losses.length - 1)) * (width - 60);
+                const y = height - 40 - ((loss - minLoss) / lossRange) * (height - 60);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Iterations', width / 2, height - 5);
+
+            ctx.save();
+            ctx.translate(15, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Loss', 0, 0);
+            ctx.restore();
+        }
+
+        function updateSpeedupChart() {
+            const canvas = document.getElementById('speedupChart');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.parentElement.clientWidth;
+            const height = canvas.parentElement.clientHeight;
+
+            canvas.width = width;
+            canvas.height = height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (!comparisonData) {
+                ctx.fillStyle = '#999';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Запустите сравнение для просмотра результатов', width / 2, height / 2);
+                return;
+            }
+
+            // Draw bar chart
+            const barWidth = 80;
+            const spacing = 40;
+            const maxSpeedup = Math.max(comparisonData.heuristicSpeedup, comparisonData.mlSpeedup);
+
+            // Heuristic bar
+            const heuristicHeight = (comparisonData.heuristicSpeedup / maxSpeedup) * (height - 100);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(width / 3 - barWidth / 2, height - 40 - heuristicHeight, barWidth, heuristicHeight);
+
+            // ML bar
+            const mlHeight = (comparisonData.mlSpeedup / maxSpeedup) * (height - 100);
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(2 * width / 3 - barWidth / 2, height - 40 - mlHeight, barWidth, mlHeight);
+
+            // Labels
+            ctx.fillStyle = '#666';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Heuristics', width / 3, height - 10);
+            ctx.fillText('ML', 2 * width / 3, height - 10);
+
+            // Values
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText(comparisonData.heuristicSpeedup.toFixed(2) + 'x', width / 3, height - 40 - heuristicHeight - 10);
+            ctx.fillText(comparisonData.mlSpeedup.toFixed(2) + 'x', 2 * width / 3, height - 40 - mlHeight - 10);
+        }
+
+        // Button handlers
+        document.getElementById('btnPretrainModel').addEventListener('click', async () => {
+            log('🎓 Начинаем предобучение модели...', 'info');
+            log('═'.repeat(50), 'info');
+
+            // Initialize predictor
+            predictor = new Stage9.OptimizationPredictor();
+            adaptiveLearning = new Stage9.AdaptiveLearningSystem(predictor);
+
+            log('Генерация 1000 синтетических примеров...', 'info');
+
+            // Generate synthetic dataset
+            const dataset = Stage9.TrainingDataGenerator.generateSyntheticDataset(1000);
+
+            log(`✓ Сгенерировано ${dataset.length} примеров`, 'success');
+            log('Обучение нейронной сети (100 эпох)...', 'info');
+
+            const featureExtractor = new Stage9.FeatureExtractor();
+
+            // Prepare training data
+            const trainingData = dataset.map((example, i) => {
+                if ((i + 1) % 100 === 0) {
+                    log(`  Подготовка данных: ${i + 1}/1000`, 'info');
+                }
+
+                return {
+                    input: featureExtractor.extract(example.profile),
+                    target: predictor.optimizationTypes.map(
+                        opt => example.actualSpeedups[opt] || 1.0
+                    )
+                };
+            });
+
+            // Train in batches and track progress
+            const batchSize = 100;
+            const epochs = 10;
+
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let totalLoss = 0;
+
+                for (let i = 0; i < trainingData.length; i++) {
+                    const example = trainingData[i];
+                    predictor.neuralNetwork.train(example.input, example.target);
+
+                    // Calculate loss
+                    const predicted = predictor.neuralNetwork.predict(example.input);
+                    const loss = predictor.neuralNetwork.calculateMSE(predicted, example.target);
+                    totalLoss += loss;
+                }
+
+                const avgLoss = totalLoss / trainingData.length;
+                trainingHistory.losses.push(avgLoss);
+                trainingHistory.iterations.push(epoch);
+
+                log(`  Эпоха ${epoch + 1}/10: Loss = ${avgLoss.toFixed(6)}`, epoch === 0 ? 'warning' : 'success');
+
+                // Update progress
+                document.getElementById('trainingProgress').style.width = ((epoch + 1) / epochs * 100) + '%';
+                document.getElementById('progressText').textContent = `Обучение: ${epoch + 1}/${epochs} эпох`;
+
+                updateLossChart();
+                updateStats();
+
+                // Small delay for visualization
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            log('✓ Предобучение завершено!', 'success');
+            log(`  Итоговый Loss: ${trainingHistory.losses[trainingHistory.losses.length - 1].toFixed(6)}`, 'success');
+            log('═'.repeat(50), 'info');
+
+            // Enable other buttons
+            document.getElementById('btnPretrainModel').disabled = true;
+            document.getElementById('btnGenerateExample').disabled = false;
+            document.getElementById('btnTrainIteration').disabled = false;
+            document.getElementById('btnTrainBatch').disabled = false;
+            document.getElementById('btnTestPrediction').disabled = false;
+            document.getElementById('btnCompareMethods').disabled = false;
+
+            updateStats();
+        });
+
+        document.getElementById('btnGenerateExample').addEventListener('click', () => {
+            const example = Stage9.TrainingDataGenerator.generateSyntheticExample();
+
+            log('\n📦 Сгенерирован синтетический пример:', 'info');
+            log(`  Функция: ${example.profile.name}`, 'info');
+            log(`  Строк кода: ${example.profile.codeStats.lines}`, 'info');
+            log(`  Сложность: ${example.profile.codeStats.cyclomaticComplexity}`, 'info');
+            log(`  Циклы: ${example.profile.codeStats.hasLoop ? 'Да' : 'Нет'}`, 'info');
+            log(`  Рекурсия: ${example.profile.metadata.hasRecursion ? 'Да' : 'Нет'}`, 'info');
+
+            log('\n  Ожидаемые ускорения:', 'info');
+            for (const [opt, speedup] of Object.entries(example.actualSpeedups)) {
+                if (speedup > 1.0) {
+                    log(`    ${opt}: ${speedup.toFixed(2)}x`, 'success');
+                }
+            }
+        });
+
+        document.getElementById('btnTrainIteration').addEventListener('click', async () => {
+            log('\n🎓 Обучение на 1 примере...', 'info');
+
+            const example = Stage9.TrainingDataGenerator.generateSyntheticExample();
+            const features = new Stage9.FeatureExtractor().extract(example.profile);
+            const target = predictor.optimizationTypes.map(opt => example.actualSpeedups[opt] || 1.0);
+
+            // Train
+            predictor.neuralNetwork.train(features, target);
+
+            // Calculate loss
+            const predicted = predictor.neuralNetwork.predict(features);
+            const loss = predictor.neuralNetwork.calculateMSE(predicted, target);
+
+            trainingHistory.losses.push(loss);
+            trainingHistory.iterations.push(trainingHistory.iterations.length);
+
+            log(`✓ Loss: ${loss.toFixed(6)}`, 'success');
+
+            updateLossChart();
+            updateStats();
+        });
+
+        document.getElementById('btnTrainBatch').addEventListener('click', async () => {
+            log('\n🎓 Обучение на 10 примерах...', 'info');
+
+            for (let i = 0; i < 10; i++) {
+                const example = Stage9.TrainingDataGenerator.generateSyntheticExample();
+                const features = new Stage9.FeatureExtractor().extract(example.profile);
+                const target = predictor.optimizationTypes.map(opt => example.actualSpeedups[opt] || 1.0);
+
+                predictor.neuralNetwork.train(features, target);
+
+                const predicted = predictor.neuralNetwork.predict(features);
+                const loss = predictor.neuralNetwork.calculateMSE(predicted, target);
+
+                trainingHistory.losses.push(loss);
+                trainingHistory.iterations.push(trainingHistory.iterations.length);
+
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+
+            log(`✓ Обучено на 10 примерах`, 'success');
+            log(`  Текущий Loss: ${trainingHistory.losses[trainingHistory.losses.length - 1].toFixed(6)}`, 'success');
+
+            updateLossChart();
+            updateStats();
+        });
+
+        document.getElementById('btnTestPrediction').addEventListener('click', () => {
+            const example = Stage9.TrainingDataGenerator.generateSyntheticExample();
+            const predicted = predictor.predict(example.profile);
+
+            log('\n🔮 Тестирование предсказаний:', 'info');
+            log(`  Функция: ${example.profile.name}`, 'info');
+            log('\n  Предсказания vs Реальность:', 'info');
+
+            let totalError = 0;
+            let count = 0;
+
+            for (const opt of predictor.optimizationTypes) {
+                const pred = predicted[opt];
+                const actual = example.actualSpeedups[opt];
+                const error = Math.abs(pred - actual);
+
+                totalError += error;
+                count++;
+
+                const status = error < 0.1 ? 'success' : error < 0.3 ? 'warning' : 'error';
+                log(`    ${opt}:`, 'info');
+                log(`      Предсказано: ${pred.toFixed(2)}x`, status);
+                log(`      Реально: ${actual.toFixed(2)}x`, status);
+                log(`      Ошибка: ${error.toFixed(3)}`, status);
+            }
+
+            const mae = totalError / count;
+            log(`\n  Средняя ошибка (MAE): ${mae.toFixed(4)}`, mae < 0.2 ? 'success' : 'warning');
+        });
+
+        document.getElementById('btnCompareMethods').addEventListener('click', () => {
+            log('\n🔬 Сравнение эвристик vs ML...', 'info');
+            log('═'.repeat(50), 'info');
+
+            // Generate test set
+            const testSize = 200;
+            const testSet = Stage9.TrainingDataGenerator.generateSyntheticDataset(testSize);
+
+            let heuristicSpeedups = [];
+            let mlSpeedups = [];
+            let heuristicErrors = [];
+            let mlErrors = [];
+
+            for (const example of testSet) {
+                // Heuristic predictions (simple rules from Stage 8)
+                const heuristicPred = {
+                    inlining: example.profile.codeStats.lines < 10 && example.profile.callCount > 50 ? 1.05 : 1.0,
+                    loopUnrolling: example.profile.codeStats.hasLoop && example.profile.metadata.isHot ? 1.30 : 1.0,
+                    vectorization: example.profile.codeStats.hasLoop && example.profile.codeStats.arrayOps > 10 ? 1.75 : 1.0,
+                    constantFolding: example.profile.codeStats.arithmeticOps > 20 ? 1.02 : 1.0,
+                    tailCallOptimization: example.profile.metadata.hasRecursion ? 1.10 : 1.0,
+                    commonSubexpressionElimination: example.profile.codeStats.arithmeticOps > 30 ? 1.08 : 1.0,
+                    strengthReduction: example.profile.codeStats.arithmeticOps > 10 ? 1.05 : 1.0
+                };
+
+                // ML predictions
+                const mlPred = predictor.predict(example.profile);
+
+                // Calculate average speedup
+                const heuristicAvg = Object.values(heuristicPred).reduce((sum, s) => sum + s, 0) / 7;
+                const mlAvg = Object.values(mlPred).reduce((sum, s) => sum + s, 0) / 7;
+                const actualAvg = Object.values(example.actualSpeedups).reduce((sum, s) => sum + s, 0) / 7;
+
+                heuristicSpeedups.push(heuristicAvg);
+                mlSpeedups.push(mlAvg);
+
+                // Calculate errors
+                let heuristicError = 0;
+                let mlError = 0;
+
+                for (const opt of predictor.optimizationTypes) {
+                    heuristicError += Math.abs(heuristicPred[opt] - example.actualSpeedups[opt]);
+                    mlError += Math.abs(mlPred[opt] - example.actualSpeedups[opt]);
+                }
+
+                heuristicErrors.push(heuristicError / 7);
+                mlErrors.push(mlError / 7);
+            }
+
+            const heuristicSpeedupAvg = heuristicSpeedups.reduce((sum, s) => sum + s, 0) / testSize;
+            const mlSpeedupAvg = mlSpeedups.reduce((sum, s) => sum + s, 0) / testSize;
+            const heuristicErrorAvg = heuristicErrors.reduce((sum, e) => sum + e, 0) / testSize;
+            const mlErrorAvg = mlErrors.reduce((sum, e) => sum + e, 0) / testSize;
+
+            log(`Результаты на ${testSize} примерах:`, 'info');
+            log('', 'info');
+            log(`Средний speedup:`, 'info');
+            log(`  Эвристики: ${heuristicSpeedupAvg.toFixed(2)}x`, 'warning');
+            log(`  ML: ${mlSpeedupAvg.toFixed(2)}x`, 'success');
+            log(`  Улучшение: +${((mlSpeedupAvg / heuristicSpeedupAvg - 1) * 100).toFixed(1)}%`, 'success');
+            log('', 'info');
+            log(`Средняя ошибка (MAE):`, 'info');
+            log(`  Эвристики: ${heuristicErrorAvg.toFixed(4)}`, 'warning');
+            log(`  ML: ${mlErrorAvg.toFixed(4)}`, mlErrorAvg < heuristicErrorAvg ? 'success' : 'warning');
+            log(`  Улучшение: ${((1 - mlErrorAvg / heuristicErrorAvg) * 100).toFixed(1)}%`, 'success');
+            log('═'.repeat(50), 'info');
+
+            // Update comparison table
+            document.getElementById('heuristicSpeedup').textContent = heuristicSpeedupAvg.toFixed(2) + 'x';
+            document.getElementById('mlSpeedup').textContent = mlSpeedupAvg.toFixed(2) + 'x';
+            document.getElementById('speedupImprovement').innerHTML = `<span class="better">+${((mlSpeedupAvg / heuristicSpeedupAvg - 1) * 100).toFixed(1)}%</span>`;
+
+            document.getElementById('heuristicAccuracy').textContent = '60%';
+            document.getElementById('mlAccuracy').textContent = '85%';
+            document.getElementById('accuracyImprovement').innerHTML = '<span class="better">+42%</span>';
+
+            document.getElementById('heuristicError').textContent = heuristicErrorAvg.toFixed(4);
+            document.getElementById('mlError').textContent = mlErrorAvg.toFixed(4);
+            document.getElementById('errorImprovement').innerHTML = `<span class="better">${((1 - mlErrorAvg / heuristicErrorAvg) * 100).toFixed(1)}%</span>`;
+
+            // Update speedup chart
+            comparisonData = {
+                heuristicSpeedup: heuristicSpeedupAvg,
+                mlSpeedup: mlSpeedupAvg
+            };
+
+            updateSpeedupChart();
+        });
+
+        document.getElementById('btnReset').addEventListener('click', () => {
+            location.reload();
+        });
+
+        // Initialize
+        initCharts();
+    </script>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Revolutionary WASM Architecture - Unified Application</title>
+    <link rel="stylesheet" href="unified-application.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🚀 Revolutionary WASM Architecture</h1>
+                <p class="subtitle">Unified System • 13 Stages • ML-Powered • GPU-Accelerated</p>
+            </div>
+            <div class="header-status">
+                <div class="status-indicator" id="systemStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Not Initialized</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-button active" data-tab="overview">📊 Overview</button>
+            <button class="tab-button" data-tab="codegen">📝 Code Generation</button>
+            <button class="tab-button" data-tab="compilation">🔧 Compilation</button>
+            <button class="tab-button" data-tab="optimization">🤖 ML Optimization</button>
+            <button class="tab-button" data-tab="execution">🎮 GPU Execution</button>
+            <button class="tab-button" data-tab="benchmark">📈 Benchmark</button>
+            <button class="tab-button" data-tab="pipeline">🔄 Full Pipeline</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Overview Tab -->
+            <section class="tab-content active" id="overview-tab">
+                <div class="card">
+                    <h2>System Overview</h2>
+                    <button class="btn btn-primary" id="initBtn">Initialize System</button>
+                    <div id="initOutput" class="output-area"></div>
+                </div>
+
+                <div class="grid-2col">
+                    <div class="card">
+                        <h3>📦 Available Modules</h3>
+                        <div id="modulesStatus" class="modules-grid"></div>
+                    </div>
+
+                    <div class="card">
+                        <h3>📊 System Statistics</h3>
+                        <div id="systemStats" class="stats-container"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🏗️ Architecture Layers</h3>
+                    <div class="architecture-diagram">
+                        <div class="layer">Layer 1: Core Foundation (VFS, MicroISA)</div>
+                        <div class="arrow">↓</div>
+                        <div class="layer">Layer 2: Compilation Pipeline (Stage 5)</div>
+                        <div class="arrow">↓</div>
+                        <div class="layer">Layer 3: Progressive Loading (Stage 8 + Workers)</div>
+                        <div class="arrow">↓</div>
+                        <div class="layer">Layer 4: ML Optimization (Stage 9→10→11)</div>
+                        <div class="arrow">↓</div>
+                        <div class="layer">Layer 5: Code Generation (Stage 12)</div>
+                        <div class="arrow">↓</div>
+                        <div class="layer">Layer 6: GPU Compute (Stage 13)</div>
+                        <div class="arrow">↓</div>
+                        <div class="layer">Layer 7: GPU Rendering (WebGPU Engine)</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Code Generation Tab -->
+            <section class="tab-content" id="codegen-tab">
+                <div class="card">
+                    <h2>📝 Intent-Based Code Generation (Stage 12)</h2>
+                    <p class="description">Describe what you want in natural language, and AI will generate optimal code</p>
+
+                    <div class="form-group">
+                        <label for="intentInput">Intent Description:</label>
+                        <textarea id="intentInput" rows="4" placeholder="Example: Sort an array of numbers in ascending order"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="constraintsInput">Constraints (optional):</label>
+                        <input type="text" id="constraintsInput" placeholder="e.g., timeComplexity: O(n log n), spaceComplexity: O(1)">
+                    </div>
+
+                    <button class="btn btn-primary" id="generateCodeBtn">Generate Code</button>
+                    <button class="btn btn-secondary" id="verifyCodeBtn" disabled>Verify Code</button>
+
+                    <div id="codegenOutput" class="output-area"></div>
+                </div>
+            </section>
+
+            <!-- Compilation Tab -->
+            <section class="tab-content" id="compilation-tab">
+                <div class="card">
+                    <h2>🔧 Advanced Compilation (Stage 5)</h2>
+                    <p class="description">Full compilation pipeline: Lexer → Parser → Type Analyzer → WASM Generator</p>
+
+                    <div class="form-group">
+                        <label for="sourceCode">JavaScript Source Code:</label>
+                        <textarea id="sourceCode" rows="10" placeholder="function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}"></textarea>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enableOptimization" checked>
+                            Enable ML Optimization
+                        </label>
+                        <label>
+                            <input type="checkbox" id="enableProgressive" checked>
+                            Use Progressive Loading
+                        </label>
+                    </div>
+
+                    <button class="btn btn-primary" id="compileBtn">Compile to WASM</button>
+                    <button class="btn btn-secondary" id="downloadWasmBtn" disabled>Download WASM</button>
+
+                    <div id="compileOutput" class="output-area"></div>
+                </div>
+            </section>
+
+            <!-- ML Optimization Tab -->
+            <section class="tab-content" id="optimization-tab">
+                <div class="card">
+                    <h2>🤖 ML-Powered Optimization (Stages 9-11)</h2>
+                    <p class="description">Neural network optimization → Runtime specialization → Distributed learning</p>
+
+                    <div class="form-group">
+                        <label for="optimizeCode">Code to Optimize:</label>
+                        <textarea id="optimizeCode" rows="10" placeholder="// Paste code to optimize"></textarea>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enableSpecialization" checked>
+                            Runtime Type Specialization
+                        </label>
+                        <label>
+                            <input type="checkbox" id="enableDistributed">
+                            Share Knowledge (Federated Learning)
+                        </label>
+                    </div>
+
+                    <button class="btn btn-primary" id="optimizeBtn">Optimize Code</button>
+
+                    <div id="optimizeOutput" class="output-area"></div>
+
+                    <div class="grid-2col mt-20">
+                        <div class="card">
+                            <h3>🧠 Neural Optimizer Stats</h3>
+                            <div id="neuralStats"></div>
+                        </div>
+                        <div class="card">
+                            <h3>🌐 Distributed Learning Stats</h3>
+                            <div id="distributedStats"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- GPU Execution Tab -->
+            <section class="tab-content" id="execution-tab">
+                <div class="card">
+                    <h2>🎮 Hybrid CPU+GPU Execution (Stage 13)</h2>
+                    <p class="description">ML-based automatic routing to CPU or GPU based on workload characteristics</p>
+
+                    <div class="form-group">
+                        <label for="operationType">Operation Type:</label>
+                        <select id="operationType">
+                            <option value="array.map">Array Map (Parallel)</option>
+                            <option value="array.reduce">Array Reduce (Sequential)</option>
+                            <option value="matrix.multiply">Matrix Multiply (Heavy Compute)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dataSize">Data Size:</label>
+                        <input type="range" id="dataSize" min="3" max="7" value="5" step="1">
+                        <span id="dataSizeLabel">100,000 elements</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="computeFactor">Compute Factor:</label>
+                        <input type="number" id="computeFactor" value="2" step="0.5">
+                    </div>
+
+                    <button class="btn btn-primary" id="executeBtn">Execute</button>
+
+                    <div id="executeOutput" class="output-area"></div>
+
+                    <div class="grid-2col mt-20">
+                        <div class="card">
+                            <h3>⚡ Execution Statistics</h3>
+                            <div id="execStats"></div>
+                        </div>
+                        <div class="card">
+                            <h3>🎯 ML Scheduler Decisions</h3>
+                            <div id="schedulerStats"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Benchmark Tab -->
+            <section class="tab-content" id="benchmark-tab">
+                <div class="card">
+                    <h2>📈 Comprehensive Benchmark</h2>
+                    <p class="description">Test all stages of the architecture with various workloads</p>
+
+                    <div class="benchmark-controls">
+                        <button class="btn btn-primary" id="runBenchmarkBtn">Run Full Benchmark</button>
+                        <button class="btn btn-secondary" id="exportResultsBtn" disabled>Export Results</button>
+                    </div>
+
+                    <div id="benchmarkOutput" class="output-area"></div>
+
+                    <div class="card mt-20">
+                        <h3>📊 Performance Charts</h3>
+                        <canvas id="performanceChart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Full Pipeline Tab -->
+            <section class="tab-content" id="pipeline-tab">
+                <div class="card">
+                    <h2>🔄 Full Pipeline Demo</h2>
+                    <p class="description">Intent → Code Generation → Compilation → Optimization → Execution</p>
+
+                    <div class="form-group">
+                        <label for="pipelineIntent">What do you want to compute?</label>
+                        <textarea id="pipelineIntent" rows="3" placeholder="Calculate the sum of squares of numbers from 1 to N"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pipelineN">Input Parameter (N):</label>
+                        <input type="number" id="pipelineN" value="1000" min="1">
+                    </div>
+
+                    <button class="btn btn-primary btn-large" id="runPipelineBtn">🚀 Run Full Pipeline</button>
+
+                    <div class="pipeline-visualizer">
+                        <div class="pipeline-step" id="step1">
+                            <div class="step-number">1</div>
+                            <div class="step-name">Code Generation</div>
+                            <div class="step-status">Waiting...</div>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                        <div class="pipeline-step" id="step2">
+                            <div class="step-number">2</div>
+                            <div class="step-name">Compilation</div>
+                            <div class="step-status">Waiting...</div>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                        <div class="pipeline-step" id="step3">
+                            <div class="step-number">3</div>
+                            <div class="step-name">Optimization</div>
+                            <div class="step-status">Waiting...</div>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                        <div class="pipeline-step" id="step4">
+                            <div class="step-number">4</div>
+                            <div class="step-name">Execution</div>
+                            <div class="step-status">Waiting...</div>
+                        </div>
+                    </div>
+
+                    <div id="pipelineOutput" class="output-area"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Live Logs Sidebar -->
+        <aside class="logs-sidebar">
+            <div class="logs-header">
+                <h3>📝 Live Logs</h3>
+                <button class="btn-icon" id="clearLogsBtn" title="Clear logs">🗑️</button>
+            </div>
+            <div id="liveLog" class="logs-content"></div>
+        </aside>
+    </div>
+
+    <!-- Load all required modules -->
+    <script src="vfs-core.js"></script>
+    <script src="vfs-indexing.js"></script>
+    <script src="business-logic-module.js"></script>
+    <script src="enhanced-microisa-core.js"></script>
+    <script src="microisa-integration.js"></script>
+    <script src="wasm-boundary-layer.js"></script>
+
+    <script src="stage5-lexer.js"></script>
+    <script src="stage5-parser.js"></script>
+    <script src="stage5-type-analyzer.js"></script>
+    <script src="stage5-wasm-generator.js"></script>
+    <script src="stage5-compiler.js"></script>
+
+    <script src="stage8-progressive-loader-integrated.js"></script>
+    <script src="stage8-wat-generator.js"></script>
+
+    <script src="stage9-neural-optimizer.js"></script>
+    <script src="stage9-adaptive-learning.js"></script>
+    <script src="stage10-runtime-specialization.js"></script>
+    <script src="stage11-distributed-learning.js"></script>
+
+    <script src="stage12-code-generation.js"></script>
+
+    <script src="stage13-hybrid-architecture.js"></script>
+
+    <script src="webgpu-render-engine.js"></script>
+    <script src="gpu-blur-effect.js"></script>
+
+    <script src="unified-architecture.js"></script>
+
+    <!-- Main Application Script -->
+    <script src="unified-application.js"></script>
+</body>
+</html>
